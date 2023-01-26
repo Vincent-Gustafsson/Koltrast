@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "xmNf+ysltAn11mYvefqPyYXnsdUHb4MJdauOWEzsYBJSoNpFTG/+Gki3MN5/kqOPRXPvA2fvAKSi7YxmWNRFKg==",
+  "success": true,
+  "projectFilePath": "C:\\Users\\vince\\RiderProjects\\Koltrast\\Koltrast\\Koltrast.fsproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\vince\\.nuget\\packages\\fparsec\\2.0.0-beta2\\fparsec.2.0.0-beta2.nupkg.sha512",
+    "C:\\Users\\vince\\.nuget\\packages\\fsharp.core\\7.0.0\\fsharp.core.7.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}
