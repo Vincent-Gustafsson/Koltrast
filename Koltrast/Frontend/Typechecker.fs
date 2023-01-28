@@ -13,7 +13,7 @@ let mkTypeError (src: string list) (loc: Location) (errMsg: string) (hint: strin
  | {String.replicate (loc.End.Index - loc.Start.Index) hintLineChar } {hint}
     "
 
-let rec infer (src: string list) (env: Env) (node: UntypedNode): Result<(TypedNode * Type * Env), string list> =
+let rec infer (src: string list) (env: Env) (node: UntypedNode): Result<(TypedNode * Type * Env), string> =
     let currScope = env.Peek()
     match node with
     | NumericLiteral(_,loc, num) -> Ok(TypedNode.NumericLiteral(Type.Int, loc, num), Type.Int, env)
@@ -25,26 +25,26 @@ let rec infer (src: string list) (env: Env) (node: UntypedNode): Result<(TypedNo
             
             let! res =
                 if lType <> rType then
-                    Error([
+                    Error(
                         mkTypeError
                            src
                            loc
                            $"operands' types not consistent. they have type {lType} and {rType}"
                            $"{lType} {binOpStr op} {rType}"
-                    ])
+                    )
                 else
                     match op with
                     | Add | Sub | Mul | Div ->
                         if lType = Type.Int then
                             Ok (TypedNode.BinOp (Int, loc, op, typedL, typedR), Int, env)
                         else
-                            Error([
+                            Error(
                                 mkTypeError
                                     src
                                     loc
                                     $"invalid operand types. they have type {lType} and {rType}, expected ({Int})"
                                     $"{lType} {binOpStr op} {rType}"
-                            ])
+                            )
             return res
         }
     | VarDecl(_,loc, name, mutability, tyAnnoOpt, initExprOpt) ->
@@ -66,4 +66,4 @@ let rec infer (src: string list) (env: Env) (node: UntypedNode): Result<(TypedNo
             env.Pop() |> ignore
             env.Push(scope')
             Ok(TypedNode.VarDecl(Void, loc, name, mutability, tyAnnoOpt, tInitExpr), Void, env)
-        | Error err -> Error([mkTypeError err])
+        | Error err -> Error(mkTypeError err)
