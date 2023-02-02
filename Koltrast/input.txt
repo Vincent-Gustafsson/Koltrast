@@ -1,1 +1,4 @@
-{let mut globalnt: int;let global = 1;let global = 5 + 9;let mut global;}
+{
+let mut foo: int = 2;
+foo = false;
+}

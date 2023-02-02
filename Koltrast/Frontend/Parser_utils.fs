@@ -3,12 +3,17 @@ module Koltrast.Frontend.Parser_utils
 open FParsec
 open AST
 
-let getExprPos (expr: UntypedNode) =
+let getNameFromIdent (expr: Expr<'a>) =
+    match expr with
+    | Ident(_,_,name) -> name
+
+let getExprLoc (expr: UntypedExpr) =
     match expr with
     | NumericLiteral(_,l,_) -> l
     | BoolLiteral(_,l,_) -> l
+    | Ident(_, l, _) -> l
     | BinOp(_,l,_,_,_) -> l
-    | VarDecl(_,l,_,_,_,_) -> l
+    | Assign(_,l,_,_) -> l
 
 let isValidIdentChar c =
     ['_'] @ ['A'..'Z'] @ ['a'..'z']

@@ -35,25 +35,23 @@ let strToType str =
     | "void" -> Some Void
     | _ -> Some (UserDefined str)
 
-(**
-Or do this:
-type VarType = 
-    | Implicit
-    | Explicit of string
-
-type Value = 
-    | IntValue of int
-    | TypeConstructor of string * Value
-
-type LetDeclr = LetDeclr of string * VarType * Value
-**)
-
-type Node<'a> =
+type Expr<'a> =
     | NumericLiteral of 'a * Location * int
     | BoolLiteral of 'a * Location * bool
-    | BinOp of 'a * Location * BinOpKind * Node<'a> * Node<'a>
-    | VarDecl of 'a * Location * string * Mutability * Option<string> * Option<Node<'a>>
-    | Block of 'a * Location * Node<'a> list
+    | Ident of 'a * Location * string
+    | BinOp of 'a * Location * BinOpKind * Expr<'a> * Expr<'a>
+    | Assign of 'a * Location * Expr<'a> * Expr<'a>
 
-type UntypedNode = Node<unit>
-type TypedNode = Node<Type>
+type UntypedExpr = Expr<unit>
+type TypedExpr = Expr<Type>
+
+type Stmt<'a> = 
+    | AnnVarDecl of 'a * Location * string * Mutability * Type * Option<Expr<'a>>
+    | InferredVarDecl of 'a * Location * string * Mutability * Option<Type> * Expr<'a>
+    | Block of 'a * Location * Stmt<'a> list
+    | ExprStmt of 'a * Location * Expr<'a>
+
+type UntypedStmt = Stmt<unit>
+type TypedStmt = Stmt<Type>
+
+type CompilationUnit<'a> = ('a * Stmt<'a>) 

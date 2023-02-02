@@ -10,7 +10,6 @@
         <Compile Include="Frontend\AST.fs" />
         <Compile Include="Frontend\Parser_utils.fs" />
         <Compile Include="Frontend\Parser.fs" />
-        <Compile Include="Frontend\Environment.fs" />
         <Compile Include="Frontend\Typechecker.fs" />
         <Compile Include="Frontend\Diagnostics.fs" />
         <Compile Include="Program.fs" />
