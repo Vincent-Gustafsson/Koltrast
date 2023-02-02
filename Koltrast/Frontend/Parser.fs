@@ -16,7 +16,7 @@ let getLoc p = parse {
     return (loc, pRes)
 }
 
-let thingy loc1 loc2 ={
+let thingy loc1 loc2 = {
     StreamName = loc1.StreamName
     Start = {| Index=int loc1.Start.Index; Line=int loc1.Start.Line; Col=int loc1.Start.Col |}
     End = {| Index=int loc2.End.Index; Line=int loc2.End.Line; Col=int loc2.End.Col |}

@@ -14,6 +14,7 @@
         <Compile Include="Frontend\Diagnostics.fs" />
         <Compile Include="Program.fs" />
         <Content Include="input.txt" />
+        <Compile Include="Interpreter.fs" />
     </ItemGroup>
 
     <ItemGroup>

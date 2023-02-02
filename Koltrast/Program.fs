@@ -5,7 +5,7 @@ open Koltrast.Frontend.AST
 open Koltrast.Frontend.Parser
 open Koltrast.Frontend.Typechecker
 
-let src = System.IO.File.ReadAllLines(@"C:\Users\Vincent Gustafsson\RiderProjects\programmering-kurs\Koltrast\Koltrast\input.txt") |> List.ofSeq
+let src = System.IO.File.ReadAllLines(@"C:\Users\vince\RiderProjects\Koltrast\Koltrast\input.txt") |> List.ofSeq
 
 let pprint compUnit =
     let rec inner stmt =
