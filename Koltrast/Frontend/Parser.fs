@@ -66,19 +66,10 @@ let literal =
         boolLiteral
     ]
 
-opp.TermParser <- choice [
-    betweenParens expr
-    literal
-    ident
-]
-
-
-
-// Declarations
-
 let typeAnnotation = choice [
     (stringReturn "int" (Type.Int))
     (stringReturn "bool" (Type.Bool))
+    (stringReturn "unit" (Type.Unit))
 ]
 
 let varDecl = parse{
@@ -110,32 +101,35 @@ let varDecl = parse{
         else
             preturn ()
             
-    let stmt =
+    let varExpr =
         match (tyAnnOpt, initExprOpt) with
-        | (Some ty, Some initExpr) -> UntypedStmt.AnnVarDecl((), loc, name, mut, ty, Some initExpr)
-        | (Some ty, None) -> UntypedStmt.AnnVarDecl((), loc, name, mut, ty, None)
-        | (None, Some initExpr) -> UntypedStmt.InferredVarDecl((), loc, name, mut, None, initExpr)
+        | (Some ty, Some initExpr) -> UntypedExpr.AnnVarDecl((), loc, name, mut, ty, Some initExpr)
+        | (Some ty, None) -> UntypedExpr.AnnVarDecl((), loc, name, mut, ty, None)
+        | (None, Some initExpr) -> UntypedExpr.InferredVarDecl((), loc, name, mut, None, initExpr)
         | (None, None) -> failwith "covered by the fail parser above."
 
-    return stmt    
+    return varExpr    
 }
 
-let exprStatement = getLoc expr |>> (fun (loc, expression) -> UntypedStmt.ExprStmt((), loc, expression))
-
-let statement =
-    choice [varDecl; exprStatement]
-    .>> skipChar ';' .>> ws
 
 let block =
     getLoc(
         between
             (skipChar '{' .>> ws)
             (skipChar '}' .>> ws)
-            (many statement)
+            (many expr)
     )
-    |>> (fun (loc, stmts) -> UntypedStmt.Block((), loc, stmts))
+    |>> (fun (loc, stmts) -> UntypedExpr.Block((), loc, stmts))
 
-let program = block .>> eof |>> (fun stmt -> CompilationUnit((), stmt))
+opp.TermParser <- choice [
+    betweenParens expr
+    block
+    varDecl
+    literal
+    ident
+]
+
+let program = expr .>> eof |>> CompilationUnit
 
 let parseFile path =
     match runParserOnFile program () path System.Text.Encoding.Default with

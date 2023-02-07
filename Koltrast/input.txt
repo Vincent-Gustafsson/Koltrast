@@ -1,4 +1,4 @@
 {
-let mut foo: int = 2;
-foo = false;
+  let mut vincent = false;
+  vincent = true = false;
 }

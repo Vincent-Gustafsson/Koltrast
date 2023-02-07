@@ -12,9 +12,9 @@
         <Compile Include="Frontend\Parser.fs" />
         <Compile Include="Frontend\Typechecker.fs" />
         <Compile Include="Frontend\Diagnostics.fs" />
+        <Compile Include="Interpreter.fs" />
         <Compile Include="Program.fs" />
         <Content Include="input.txt" />
-        <Compile Include="Interpreter.fs" />
     </ItemGroup>
 
     <ItemGroup>

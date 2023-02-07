@@ -4,8 +4,11 @@ open Koltrast.ResultBuilder
 open Koltrast.Frontend.AST
 open Koltrast.Frontend.Parser
 open Koltrast.Frontend.Typechecker
+open Koltrast.Interpreter
 
-let src = System.IO.File.ReadAllLines(@"C:\Users\vince\RiderProjects\Koltrast\Koltrast\input.txt") |> List.ofSeq
+let path = @"C:\Users\Vincent Gustafsson\RiderProjects\programmering-kurs\Koltrast\Koltrast\input.txt"
+
+let src = System.IO.File.ReadAllLines(path) |> List.ofSeq
 
 let pprint compUnit =
     let rec inner stmt =
@@ -21,10 +24,15 @@ let pprint compUnit =
 
     inner (compUnit |> snd)
 
-match parseFile @"C:\Users\Vincent Gustafsson\RiderProjects\programmering-kurs\Koltrast\Koltrast\input.txt" with
+match parseFile path with
 | Ok compUnit ->
     match checkCompilationUnit src compUnit with
-    | Ok typedCompUnit -> printfn "%s" <| pprint typedCompUnit
+    | Ok typedCompUnit ->
+        printfn "%s" <| pprint typedCompUnit
+        let (env, _) = evaluateCompUnit typedCompUnit
+        
+        Map.iter (fun k v -> printfn "%s" $"{k} => {v}") env
+        
     | Error e -> List.iter (fun err -> printfn "%s" err) e
     
 | Error err -> printfn "%s" err |> exit 1
