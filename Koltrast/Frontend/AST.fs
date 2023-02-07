@@ -34,7 +34,7 @@ let strToType str =
     | "int" -> Some Int
     | "unit" -> Some Unit
     | "bool" -> Some Bool
-    | _ -> Some (UserDefined str)
+    | _ -> None
 
 type Expr<'a> =
     | NumericLiteral of 'a * Location * int

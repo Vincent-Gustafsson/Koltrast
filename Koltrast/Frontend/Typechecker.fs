@@ -34,17 +34,41 @@ let mkTypeError (src: string list) (loc: Location) (errMsg: string) (hint: strin
 let rec typeBlock (src: string list) (env: Env) (loc: Location) (exprs: UntypedExpr list) =
     let infer = inferExpr src
     
-    ((env, []), exprs)
+    (env, exprs)
     ||>
-    List.mapFold
-
-(**    match exprs with
-    | [] -> Ok(TypedExpr.Block(Type.Unit, loc, []), Type.Unit)
-    | [expr] ->
+    List.mapFold (fun ee expr ->
         match infer env expr with
-        | Ok(tExpr, ty) -> Ok(TypedExpr.Block(ty, loc, [tExpr]), ty)
-        | Error e -> Error e
-**)
+        | Ok(tExpr, ty) ->
+            match tExpr with
+            | InferredVarDecl(_, _, name, mut, tyOpt, _) ->
+                let env' = Env.addVar env name (varTy, mut)
+                (Ok(tExpr, Type.Unit), env')
+            | AnnVarDecl(_, _, name, mut, ty, _) ->
+                let env' = Env.addVar env name (ty, mut)
+                (Ok(tExpr, Type.Unit), env')
+            | _ ->
+                (Ok(tExpr, ty), env)
+        | Error e -> (Error e, env)
+    )
+    |> (fun (checkResults, env') ->
+        let ok, errors =
+            (([], []), checkResults)
+            ||> List.fold (fun (ok, errs) r ->
+                match r with
+                | Ok (tExpr, ty) -> ok @ [(tExpr, ty)], errs
+                | Error e -> ok, errs @ e)
+        
+        match ok, errors with
+        | [], [] -> Ok(TypedExpr.Block(Type.Unit, loc, []), Type.Unit)
+        | [(tExpr, ty)], [] ->
+            Ok(TypedExpr.Block(ty, loc, [tExpr]), ty)
+        | ok, [] ->
+            let tExprs, types = ok |> List.unzip
+            let lastTy = types |> List.last
+            Ok(TypedExpr.Block(lastTy, loc, tExprs), lastTy)
+        | _, e -> Error e
+    )
+
 and inferExpr (src: string list) (env: Env) (expr: UntypedExpr): Result<TypedExpr * Type, string list> =
     let infer = inferExpr src
     let check = checkExpr src
@@ -132,39 +156,25 @@ and inferExpr (src: string list) (env: Env) (expr: UntypedExpr): Result<TypedExp
             match check env initExpr ty with
             | Ok typedInitExpr ->
                 let env' = Env.addVar env name (ty, mut)
-                Ok(env', TypedStmt.AnnVarDecl(Void, loc, name, mut, ty, Some typedInitExpr))
+                Ok(TypedExpr.AnnVarDecl(Type.Unit, loc, name, mut, ty, Some typedInitExpr), Type.Unit)
             | Error e -> Error e
         | None ->
             let env' = Env.addVar env name (ty, mut)
-            Ok(env', TypedStmt.AnnVarDecl(Void, loc, name, mut, ty, None))
+            Ok(TypedExpr.AnnVarDecl(Type.Unit, loc, name, mut, ty, None), Type.Unit)
     | InferredVarDecl(_, loc, name, mut, tyOpt, expr) ->
         match tyOpt with
         | Some ty ->
             match check env expr ty with
             | Ok typedInitExpr ->
-                let env' = Env.addVar env name (ty, mut)
-                Ok(env', TypedStmt.InferredVarDecl(Void, loc, name, mut, Some ty, typedInitExpr))
+                Ok(TypedExpr.InferredVarDecl(Type.Unit, loc, name, mut, Some ty, typedInitExpr), Type.Unit)
             | Error e -> Error e
         | None ->
             match infer env expr with
             | Ok(typedInitExpr, initExprTy) ->
                 let env' = Env.addVar env name (initExprTy, mut)
-                Ok(env', TypedStmt.InferredVarDecl(Void, loc, name, mut, Some initExprTy, typedInitExpr))
+                Ok(TypedExpr.InferredVarDecl(Type.Unit, loc, name, mut, Some initExprTy, typedInitExpr), Type.Unit)
             | Error e -> Error e
-    | Block(_, loc, stmts) ->
-        ((env, []), stmts)
-        ||> List.mapFold (fun (env, errors) stmt ->
-            match checkStmt src env stmt with
-            | Ok(env', tyStmt) -> [tyStmt], (env', errors)
-            | Error e -> [], (env, errors @ e)
-        )
-        |> (fun (checkedStmts, (env', errors)) ->
-            let typedStmts = List.concat checkedStmts
-            if errors.IsEmpty then
-                Ok(env, TypedStmt.Block(Void, loc, typedStmts))
-            else
-                Error errors
-        )
+    | Block(_, loc, exprs) -> typeBlock src env loc exprs
     
     
     | _ -> Error(["What the fuck?"])
