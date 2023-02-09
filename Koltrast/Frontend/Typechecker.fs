@@ -203,11 +203,24 @@ and inferExpr (src: string list) (env: Env) (expr: UntypedExpr): Result<TypedExp
         match Env.lookupFunc env name with
         | Some (paramTypes, retTy) ->
             if args.Length = paramTypes.Length then
-                let sus =
-                    List.zip args paramTypes
-                    |> List.map (fun (argTy, paramTy) -> check env argTy paramTy)
-                
-                Error ["s"]
+                (args, paramTypes)
+                ||> List.zip
+                |> List.map (fun (argTy, paramTy) -> check env argTy paramTy)
+                |> List.fold (fun (oks, errors) r ->
+                    match r with
+                    | Ok value -> oks @ [value], errors
+                    | Error e -> oks, errors @ e) ([], [])
+                |> function
+                    | tExprs, [] -> Ok(TypedExpr.Call(retTy, loc, name, tExprs), retTy)
+                    | _, errors -> Error errors
+            else
+                Error([
+                    mkTypeError
+                        src
+                        loc
+                        $"number of arguments does not match the number of parameters."
+                        (if args.Length > paramTypes.Length then "too many arguments" else "too few arguments")
+                 ])
         | None -> Error ["i"]
             
     | _ -> Error(["What the fuck?"])

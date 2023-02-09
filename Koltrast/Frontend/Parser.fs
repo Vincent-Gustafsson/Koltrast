@@ -196,9 +196,9 @@ let testCall = parse {
 opp.TermParser <- choice [
     betweenParens expr
     block
+    testCall
     varDecl
     func
-    testCall
     literal
     ident
 ]

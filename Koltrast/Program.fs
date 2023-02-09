@@ -6,7 +6,7 @@ open Koltrast.Frontend.Parser
 open Koltrast.Frontend.Typechecker
 open Koltrast.Interpreter
 
-let path = @"C:\Users\Vincent Gustafsson\RiderProjects\programmering-kurs\Koltrast\Koltrast\input.txt"
+let path = @"C:\Users\vince\RiderProjects\Koltrast\Koltrast\input.txt"
 
 let src = System.IO.File.ReadAllLines(path) |> List.ofSeq
 
