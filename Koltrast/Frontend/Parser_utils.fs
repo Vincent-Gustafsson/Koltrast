@@ -14,6 +14,10 @@ let getExprLoc (expr: UntypedExpr) =
     | Ident(_, l, _) -> l
     | BinOp(_,l,_,_,_) -> l
     | Assign(_,l,_,_) -> l
+    | If(_,l,_,_,_) -> l
+    | Block(_,l,_) -> l
+    | Func(_,l,_,_,_,_) -> l
+    | Call(_,l,_,_) -> l
 
 let isValidIdentChar c =
     ['_'] @ ['A'..'Z'] @ ['a'..'z']

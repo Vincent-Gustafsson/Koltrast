@@ -34,13 +34,17 @@ let addInfixOperator str prec assoc mapping =
     let op = InfixOperator(str, ws >>. getPosition, prec, assoc, (), (fun opPos l r -> mapping (thingy (getExprLoc l) (getExprLoc r)) l r))
     (opp.AddOperator(op))
 
-
 addInfixOperator "+" 7 Associativity.Left (fun loc l r -> UntypedExpr.BinOp((), loc, Add, l, r))
 addInfixOperator "-" 7 Associativity.Left (fun loc l r -> UntypedExpr.BinOp((), loc, Sub, l, r))
 addInfixOperator "*" 8 Associativity.Left (fun loc l r -> UntypedExpr.BinOp((), loc, Mul, l, r))
 addInfixOperator "/" 8 Associativity.Left (fun loc l r -> UntypedExpr.BinOp((), loc, Div, l, r))
 
 addInfixOperator "=" 3 Associativity.Right (fun loc l r -> UntypedExpr.Assign((), loc, l, r))
+
+opp.AddOperator(TernaryOperator("?", ws >>. getPosition, ":", ws >>. getPosition, 10, Associativity.Left,
+                                (fun condExpr thenExpr elseExpr ->
+                                    let loc = (thingy (getExprLoc condExpr) (getExprLoc elseExpr))
+                                    UntypedExpr.If((), loc, condExpr, thenExpr, elseExpr))))
 
 let expr = opp.ExpressionParser
 
@@ -111,6 +115,9 @@ let varDecl = parse{
     return varExpr    
 }
 
+let ifExpr =
+    getLoc (tuple3 (expr .>> (ws .>> skipChar '|')) (expr .>> (ws .>> skipChar '|')) expr)
+    |>> (fun (loc, (condExpr, thenExpr, elseExpr)) -> UntypedExpr.If((), loc, condExpr, thenExpr, elseExpr))
 
 let block =
     getLoc(
@@ -121,10 +128,77 @@ let block =
     )
     |>> (fun (loc, stmts) -> UntypedExpr.Block((), loc, stmts))
 
+let func = parse {
+    do! ws
+    let! startPos = getPosition
+
+    do! ws
+    do! skipString "fn"
+    
+    do! ws
+    let! parsedIdent = ident
+    let name = getNameFromIdent parsedIdent
+    
+    do! ws
+    let! paramaters =
+        betweenParens
+            (sepBy
+                (parse {
+                    do! ws
+                    let! name = ident |>> getNameFromIdent
+                    
+                    do! ws
+                    do! skipChar ':'
+                    
+                    do! ws
+                    let! ty = typeAnnotation
+                    
+                    return name, ty
+                })
+                (ws >>. skipChar ','))
+    
+    do! ws
+    do! skipString "->"
+    
+    do! ws
+    let! retType = typeAnnotation
+    
+    do! ws    
+    let! body = block
+
+    let! endPos = getPosition
+    let loc = locFromFParsecPos startPos endPos
+    
+    return UntypedExpr.Func((), loc, name, paramaters, retType, body)    
+}
+
+let testCall = parse {
+    do! ws
+    let! startPos = getPosition
+    
+    do! ws
+    let! parsedIdent = ident
+    let name = getNameFromIdent parsedIdent
+    
+    do! ws
+    let! args =
+        betweenParens
+            (sepBy
+                (ws >>. expr)
+                (ws >>. skipChar ','))
+    
+    let! endPos = getPosition
+    let loc = locFromFParsecPos startPos endPos
+    
+    return UntypedExpr.Call((), loc, name, args)    
+}
+
 opp.TermParser <- choice [
     betweenParens expr
     block
     varDecl
+    func
+    testCall
     literal
     ident
 ]

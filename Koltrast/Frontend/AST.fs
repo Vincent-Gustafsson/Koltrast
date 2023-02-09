@@ -44,8 +44,10 @@ type Expr<'a> =
     | Assign of 'a * Location * Expr<'a> * Expr<'a>
     | AnnVarDecl of 'a * Location * string * Mutability * Type * Option<Expr<'a>>
     | InferredVarDecl of 'a * Location * string * Mutability * Option<Type> * Expr<'a>
+    | If of 'a * Location * Expr<'a> * Expr<'a> * Expr<'a>
     | Block of 'a * Location * Expr<'a> list
-    | ExprStmt of 'a * Location * Expr<'a>
+    | Func of 'a * Location * string * (string * Type) list * Type * Expr<'a>
+    | Call of 'a * Location * string * Expr<'a> list
 
 type UntypedExpr = Expr<unit>
 type TypedExpr = Expr<Type>
