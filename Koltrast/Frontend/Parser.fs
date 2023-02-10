@@ -134,11 +134,11 @@ let func = parse {
 
     do! ws
     do! skipString "fn"
-    
+
     do! ws
     let! parsedIdent = ident
     let name = getNameFromIdent parsedIdent
-    
+
     do! ws
     let! paramaters =
         betweenParens
@@ -146,7 +146,6 @@ let func = parse {
                 (parse {
                     do! ws
                     let! name = ident |>> getNameFromIdent
-                    
                     do! ws
                     do! skipChar ':'
                     
@@ -179,7 +178,7 @@ let testCall = parse {
     do! ws
     let! parsedIdent = ident
     let name = getNameFromIdent parsedIdent
-    
+
     do! ws
     let! args =
         betweenParens
@@ -194,13 +193,15 @@ let testCall = parse {
 }
 
 opp.TermParser <- choice [
+    choice [
+        literal
+        ident
+        testCall
+        func
+        varDecl
+        block
+    ]
     betweenParens expr
-    block
-    testCall
-    varDecl
-    func
-    literal
-    ident
 ]
 
 let program = expr .>> eof |>> CompilationUnit

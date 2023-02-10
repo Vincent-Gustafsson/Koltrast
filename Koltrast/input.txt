@@ -1,5 +1,5 @@
 {
-    fn foo() -> unit {
+    fn foo(bar: int) -> unit {
     }
     foo()
     1+1
