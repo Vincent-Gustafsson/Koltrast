@@ -21,7 +21,7 @@ module Env =
 
 let mkTypeError (src: string list) (loc: Location) (errMsg: string) (hint: string) =
     let line = System.IO.File.ReadAllLines(loc.StreamName)[loc.Start.Line - 1 ]
-    let coolStr = (String.replicate (loc.End.Col - loc.Start.Col) "^") + $" {hint}"
+    let coolStr = (String.replicate (loc.End.Index - loc.Start.Index) "^") + $" {hint}"
     let last n xs = Array.toSeq xs |> Seq.skip (xs.Length - n) |> Seq.toList
     let filePath = 
         loc.StreamName.Split('\\')
@@ -51,6 +51,14 @@ let rec typeBlock (src: string list) (env: Env) (loc: Location) (exprs: UntypedE
                 (Ok(tExpr, ty), env')
             | AnnVarDecl(_, _, name, mut, ty, _) ->
                 let env' = Env.addVar env name (ty, mut)
+                (Ok(tExpr, ty), env')
+            | Func(_, _, name, params, retTy, _) ->
+                let paramTypes =
+                    params
+                    |> List.unzip
+                    |> snd
+
+                let env' = Env.addFunc env name (paramTypes, retTy)
                 (Ok(tExpr, ty), env')
             | _ ->
                 (Ok(tExpr, ty), env)
@@ -109,7 +117,7 @@ and inferExpr (src: string list) (env: Env) (expr: UntypedExpr): Result<TypedExp
                     ])
                 else
                     match op with
-                    | Add | Sub | Mul | Div ->
+                    | Add | Sub | Mul | Div | Mod ->
                         if lType = Type.Int then
                             Ok (TypedExpr.BinOp (Int, loc, op, typedL, typedR), Int)
                         else
@@ -120,6 +128,28 @@ and inferExpr (src: string list) (env: Env) (expr: UntypedExpr): Result<TypedExp
                                     $"invalid operand types. they have type {lType} and {rType}, expected ({Int})"
                                     $"{lType} {binOpStr op} {rType}"
                             ])
+                    | GT | LT ->
+                        match lType, rType with
+                        | Int, Int -> Ok(TypedExpr.BinOp(Bool, loc, op, typedL, typedR), Bool)
+                        | _ -> Error([
+                                mkTypeError
+                                    src
+                                    loc
+                                    $"invalid operand types. they have type {lType} and {rType}, expected ({Int})"
+                                    $"{lType} {binOpStr op} {rType}"
+                            ])
+                    | EQ ->
+                        if lType = rType then
+                            Ok (TypedExpr.BinOp (Bool, loc, op, typedL, typedR), Bool)
+                        else
+                            Error([
+                                mkTypeError
+                                    src
+                                    loc
+                                    $"invalid operand types. they have type {lType} and {rType}, expected ({Int} or {Bool}). ALSO, MISMATCH MAYBE TOO LAZY TO FIX GOOD ERROR REPORTING :)"
+                                    $"{lType} {binOpStr op} {rType}"
+                            ])
+
             return res
         }
     | Assign(_, loc, l, r) ->
@@ -218,11 +248,49 @@ and inferExpr (src: string list) (env: Env) (expr: UntypedExpr): Result<TypedExp
                     mkTypeError
                         src
                         loc
-                        $"number of arguments does not match the number of parameters."
+                        $"number of arguments does not match the number of parameters (expected {paramTypes.Length}, got {args.Length})."
                         (if args.Length > paramTypes.Length then "too many arguments" else "too few arguments")
                  ])
-        | None -> Error ["i"]
-            
+        | None ->
+            Error([
+                mkTypeError
+                    src
+                    loc
+                    $"undefined function {name}"
+                    $""
+            ])
+    | While(_, loc, cond, block) ->
+        match block with
+        | Block(_, loc, exprs) ->
+            match check env cond Bool with
+            | Ok tCond ->
+                match typeBlock src env loc exprs with
+                | Ok(tBlock, ty) ->
+                    Ok(While(Unit, loc, tCond, tBlock), Unit)
+                | Error e -> Error e
+            | Error e -> Error e
+        | _ ->
+            Error([
+                mkTypeError
+                    src
+                    loc
+                    $"expected block"
+                    $"not a block (???)"
+            ])
+                
+    | Print(_, loc, expr) ->
+        match infer env expr with
+        | Ok (tExpr, ty) ->
+            match ty with
+            | Int | Bool -> Ok(TypedExpr.Print(ty, loc, tExpr), Unit)
+            | _ -> Error([
+                mkTypeError
+                    src
+                    loc
+                    $"printing unit is not allowed"
+                    $"invalid type Unit"
+            ])
+        | Error e -> Error e
     | _ -> Error(["What the fuck?"])
 
 and checkExpr (src: string list) (env: Env) (expr: UntypedExpr) (expectedTy: Type) =

@@ -38,6 +38,12 @@ addInfixOperator "+" 7 Associativity.Left (fun loc l r -> UntypedExpr.BinOp((), 
 addInfixOperator "-" 7 Associativity.Left (fun loc l r -> UntypedExpr.BinOp((), loc, Sub, l, r))
 addInfixOperator "*" 8 Associativity.Left (fun loc l r -> UntypedExpr.BinOp((), loc, Mul, l, r))
 addInfixOperator "/" 8 Associativity.Left (fun loc l r -> UntypedExpr.BinOp((), loc, Div, l, r))
+addInfixOperator "%" 8 Associativity.Left (fun loc l r -> UntypedExpr.BinOp((), loc, Mod, l, r))
+
+addInfixOperator "==" 5 Associativity.Left (fun loc l r -> UntypedExpr.BinOp((), loc, EQ, l, r))
+addInfixOperator ">" 5 Associativity.Left (fun loc l r -> UntypedExpr.BinOp((), loc, GT, l, r))
+addInfixOperator "<" 5 Associativity.Left (fun loc l r -> UntypedExpr.BinOp((), loc, LT, l, r))
+
 
 addInfixOperator "=" 3 Associativity.Right (fun loc l r -> UntypedExpr.Assign((), loc, l, r))
 
@@ -49,7 +55,7 @@ opp.AddOperator(TernaryOperator("?", ws >>. getPosition, ":", ws >>. getPosition
 let expr = opp.ExpressionParser
 
 let betweenParens p =
-    between (skipChar '(') (skipChar ')') p
+    (between (skipChar '(') (skipChar ')') p ) .>> ws
 
 let numericLiteral = getLoc pint64 .>> ws |>> (fun (loc, n) -> UntypedExpr.NumericLiteral ((), loc, int n))
 let boolLiteral = getLoc (stringReturn "true" true <|> stringReturn "false" false) .>> ws |>> (fun (loc, b) -> UntypedExpr.BoolLiteral ((), loc, b))
@@ -61,8 +67,16 @@ let ident =
         if isKeyword name then
             fail $"'{name}' is a reserved keyword"
         else
+            
             preturn (UntypedExpr.Ident((), loc, name))
     )
+
+let identWithOptArgs =
+    getLoc (tuple2 ident (opt (betweenParens (sepBy (ws >>. expr) (ws >>. skipChar ',')))))
+    |>> (fun (loc, (id, optArgs)) ->
+            match optArgs with
+            | Some args -> UntypedExpr.Call((), loc, (getNameFromIdent id), args)
+            | None -> UntypedExpr.Ident((), loc, (getNameFromIdent id)))
 
 let literal =
     choice [
@@ -123,7 +137,7 @@ let block =
     getLoc(
         between
             (skipChar '{' .>> ws)
-            (skipChar '}' .>> ws)
+            (ws >>. skipChar '}' .>> ws)
             (many expr)
     )
     |>> (fun (loc, stmts) -> UntypedExpr.Block((), loc, stmts))
@@ -134,11 +148,11 @@ let func = parse {
 
     do! ws
     do! skipString "fn"
-    
+
     do! ws
     let! parsedIdent = ident
     let name = getNameFromIdent parsedIdent
-    
+
     do! ws
     let! paramaters =
         betweenParens
@@ -146,7 +160,6 @@ let func = parse {
                 (parse {
                     do! ws
                     let! name = ident |>> getNameFromIdent
-                    
                     do! ws
                     do! skipChar ':'
                     
@@ -172,35 +185,25 @@ let func = parse {
     return UntypedExpr.Func((), loc, name, paramaters, retType, body)    
 }
 
-let testCall = parse {
-    do! ws
-    let! startPos = getPosition
-    
-    do! ws
-    let! parsedIdent = ident
-    let name = getNameFromIdent parsedIdent
-    
-    do! ws
-    let! args =
-        betweenParens
-            (sepBy
-                (ws >>. expr)
-                (ws >>. skipChar ','))
-    
-    let! endPos = getPosition
-    let loc = locFromFParsecPos startPos endPos
-    
-    return UntypedExpr.Call((), loc, name, args)    
-}
+let pwhile =
+    getLoc (
+        ws >>. skipString "while"
+        >>. ws >>. expr
+        .>>. expr
+    )
+    |>> (fun (loc, (cond, block)) -> UntypedExpr.While((), loc, cond, block))
+
+let pprint = getLoc (ws >>. skipString "print" >>. ws >>. expr) |>> (fun (loc, e) -> UntypedExpr.Print((), loc, e))
 
 opp.TermParser <- choice [
+    attempt literal
+    attempt block
+    attempt pwhile
+    attempt func
+    attempt varDecl
+    attempt pprint // for prototyping "parsePrint"
+    attempt identWithOptArgs
     betweenParens expr
-    block
-    testCall
-    varDecl
-    func
-    literal
-    ident
 ]
 
 let program = expr .>> eof |>> CompilationUnit
