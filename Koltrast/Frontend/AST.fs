@@ -26,14 +26,15 @@ type Mutability =
 type Type =
     | Int
     | Bool
-    | UserDefined of string
-    | Void
+    | Unit
+//    | UserDefined of string
 
 let strToType str =
     match str with
     | "int" -> Some Int
-    | "void" -> Some Void
-    | _ -> Some (UserDefined str)
+    | "unit" -> Some Unit
+    | "bool" -> Some Bool
+    | _ -> None
 
 type Expr<'a> =
     | NumericLiteral of 'a * Location * int
@@ -41,17 +42,14 @@ type Expr<'a> =
     | Ident of 'a * Location * string
     | BinOp of 'a * Location * BinOpKind * Expr<'a> * Expr<'a>
     | Assign of 'a * Location * Expr<'a> * Expr<'a>
+    | AnnVarDecl of 'a * Location * string * Mutability * Type * Option<Expr<'a>>
+    | InferredVarDecl of 'a * Location * string * Mutability * Option<Type> * Expr<'a>
+    | If of 'a * Location * Expr<'a> * Expr<'a> * Expr<'a>
+    | Block of 'a * Location * Expr<'a> list
+    | Func of 'a * Location * string * (string * Type) list * Type * Expr<'a>
+    | Call of 'a * Location * string * Expr<'a> list
 
 type UntypedExpr = Expr<unit>
 type TypedExpr = Expr<Type>
 
-type Stmt<'a> = 
-    | AnnVarDecl of 'a * Location * string * Mutability * Type * Option<Expr<'a>>
-    | InferredVarDecl of 'a * Location * string * Mutability * Option<Type> * Expr<'a>
-    | Block of 'a * Location * Stmt<'a> list
-    | ExprStmt of 'a * Location * Expr<'a>
-
-type UntypedStmt = Stmt<unit>
-type TypedStmt = Stmt<Type>
-
-type CompilationUnit<'a> = ('a * Stmt<'a>) 
+type CompilationUnit<'a> = | CompilationUnit of Expr<'a> 

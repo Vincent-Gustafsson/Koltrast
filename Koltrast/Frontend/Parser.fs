@@ -34,18 +34,28 @@ let addInfixOperator str prec assoc mapping =
     let op = InfixOperator(str, ws >>. getPosition, prec, assoc, (), (fun opPos l r -> mapping (thingy (getExprLoc l) (getExprLoc r)) l r))
     (opp.AddOperator(op))
 
-
 addInfixOperator "+" 7 Associativity.Left (fun loc l r -> UntypedExpr.BinOp((), loc, Add, l, r))
 addInfixOperator "-" 7 Associativity.Left (fun loc l r -> UntypedExpr.BinOp((), loc, Sub, l, r))
 addInfixOperator "*" 8 Associativity.Left (fun loc l r -> UntypedExpr.BinOp((), loc, Mul, l, r))
 addInfixOperator "/" 8 Associativity.Left (fun loc l r -> UntypedExpr.BinOp((), loc, Div, l, r))
+addInfixOperator "%" 8 Associativity.Left (fun loc l r -> UntypedExpr.BinOp((), loc, Mod, l, r))
+
+addInfixOperator "==" 5 Associativity.Left (fun loc l r -> UntypedExpr.BinOp((), loc, EQ, l, r))
+addInfixOperator ">" 5 Associativity.Left (fun loc l r -> UntypedExpr.BinOp((), loc, GT, l, r))
+addInfixOperator "<" 5 Associativity.Left (fun loc l r -> UntypedExpr.BinOp((), loc, LT, l, r))
+
 
 addInfixOperator "=" 3 Associativity.Right (fun loc l r -> UntypedExpr.Assign((), loc, l, r))
+
+opp.AddOperator(TernaryOperator("?", ws >>. getPosition, ":", ws >>. getPosition, 10, Associativity.Left,
+                                (fun condExpr thenExpr elseExpr ->
+                                    let loc = (thingy (getExprLoc condExpr) (getExprLoc elseExpr))
+                                    UntypedExpr.If((), loc, condExpr, thenExpr, elseExpr))))
 
 let expr = opp.ExpressionParser
 
 let betweenParens p =
-    between (skipChar '(') (skipChar ')') p
+    (between (skipChar '(') (skipChar ')') p ) .>> ws
 
 let numericLiteral = getLoc pint64 .>> ws |>> (fun (loc, n) -> UntypedExpr.NumericLiteral ((), loc, int n))
 let boolLiteral = getLoc (stringReturn "true" true <|> stringReturn "false" false) .>> ws |>> (fun (loc, b) -> UntypedExpr.BoolLiteral ((), loc, b))
@@ -57,8 +67,16 @@ let ident =
         if isKeyword name then
             fail $"'{name}' is a reserved keyword"
         else
+            
             preturn (UntypedExpr.Ident((), loc, name))
     )
+
+let identWithOptArgs =
+    getLoc (tuple2 ident (opt (betweenParens (sepBy (ws >>. expr) (ws >>. skipChar ',')))))
+    |>> (fun (loc, (id, optArgs)) ->
+            match optArgs with
+            | Some args -> UntypedExpr.Call((), loc, (getNameFromIdent id), args)
+            | None -> UntypedExpr.Ident((), loc, (getNameFromIdent id)))
 
 let literal =
     choice [
@@ -66,19 +84,10 @@ let literal =
         boolLiteral
     ]
 
-opp.TermParser <- choice [
-    betweenParens expr
-    literal
-    ident
-]
-
-
-
-// Declarations
-
 let typeAnnotation = choice [
     (stringReturn "int" (Type.Int))
     (stringReturn "bool" (Type.Bool))
+    (stringReturn "unit" (Type.Unit))
 ]
 
 let varDecl = parse{
@@ -110,32 +119,94 @@ let varDecl = parse{
         else
             preturn ()
             
-    let stmt =
+    let varExpr =
         match (tyAnnOpt, initExprOpt) with
-        | (Some ty, Some initExpr) -> UntypedStmt.AnnVarDecl((), loc, name, mut, ty, Some initExpr)
-        | (Some ty, None) -> UntypedStmt.AnnVarDecl((), loc, name, mut, ty, None)
-        | (None, Some initExpr) -> UntypedStmt.InferredVarDecl((), loc, name, mut, None, initExpr)
+        | (Some ty, Some initExpr) -> UntypedExpr.AnnVarDecl((), loc, name, mut, ty, Some initExpr)
+        | (Some ty, None) -> UntypedExpr.AnnVarDecl((), loc, name, mut, ty, None)
+        | (None, Some initExpr) -> UntypedExpr.InferredVarDecl((), loc, name, mut, None, initExpr)
         | (None, None) -> failwith "covered by the fail parser above."
 
-    return stmt    
+    return varExpr    
 }
 
-let exprStatement = getLoc expr |>> (fun (loc, expression) -> UntypedStmt.ExprStmt((), loc, expression))
-
-let statement =
-    choice [varDecl; exprStatement]
-    .>> skipChar ';' .>> ws
+let ifExpr =
+    getLoc (tuple3 (expr .>> (ws .>> skipChar '|')) (expr .>> (ws .>> skipChar '|')) expr)
+    |>> (fun (loc, (condExpr, thenExpr, elseExpr)) -> UntypedExpr.If((), loc, condExpr, thenExpr, elseExpr))
 
 let block =
     getLoc(
         between
             (skipChar '{' .>> ws)
-            (skipChar '}' .>> ws)
-            (many statement)
+            (ws >>. skipChar '}' .>> ws)
+            (many expr)
     )
-    |>> (fun (loc, stmts) -> UntypedStmt.Block((), loc, stmts))
+    |>> (fun (loc, stmts) -> UntypedExpr.Block((), loc, stmts))
 
-let program = block .>> eof |>> (fun stmt -> CompilationUnit((), stmt))
+let func = parse {
+    do! ws
+    let! startPos = getPosition
+
+    do! ws
+    do! skipString "fn"
+
+    do! ws
+    let! parsedIdent = ident
+    let name = getNameFromIdent parsedIdent
+
+    do! ws
+    let! paramaters =
+        betweenParens
+            (sepBy
+                (parse {
+                    do! ws
+                    let! name = ident |>> getNameFromIdent
+                    do! ws
+                    do! skipChar ':'
+                    
+                    do! ws
+                    let! ty = typeAnnotation
+                    
+                    return name, ty
+                })
+                (ws >>. skipChar ','))
+    
+    do! ws
+    do! skipString "->"
+    
+    do! ws
+    let! retType = typeAnnotation
+    
+    do! ws    
+    let! body = block
+
+    let! endPos = getPosition
+    let loc = locFromFParsecPos startPos endPos
+    
+    return UntypedExpr.Func((), loc, name, paramaters, retType, body)    
+}
+
+let pwhile =
+    getLoc (
+        ws >>. skipString "while"
+        >>. ws >>. expr
+        .>>. expr
+    )
+    |>> (fun (loc, (cond, block)) -> UntypedExpr.While((), loc, cond, block))
+
+let pprint = getLoc (ws >>. skipString "print" >>. ws >>. expr) |>> (fun (loc, e) -> UntypedExpr.Print((), loc, e))
+
+opp.TermParser <- choice [
+    attempt literal
+    attempt block
+    attempt pwhile
+    attempt func
+    attempt varDecl
+    attempt pprint // for prototyping "parsePrint"
+    attempt identWithOptArgs
+    betweenParens expr
+]
+
+let program = expr .>> eof |>> CompilationUnit
 
 let parseFile path =
     match runParserOnFile program () path System.Text.Encoding.Default with
