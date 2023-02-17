@@ -10,11 +10,25 @@ type Value =
 
 type Env = {
     vars: Map<string, Value>
-    funcs: Map<string, TypedExpr>
+    funcs: Map<string, (string list * TypedExpr)>
 }
 
 module Env =
     let empty = { vars=Map.empty; funcs=Map.empty }
+    let extendWith (env1: Env) (env2: Env) =
+        let vars' =
+            (env1.vars, env2.vars)
+            ||> (fun a b -> Map.toList a, Map.toList b)
+            ||> (@)
+            |> Map.ofList
+        
+        let funcs' =
+            (env1.funcs, env2.funcs)
+            ||> (fun a b -> Map.toList a, Map.toList b)
+            ||> (@)
+            |> Map.ofList
+            
+        { vars=vars'; funcs=funcs' }
     let addVar env key value = { env with vars=(Map.add key value env.vars) }
     let lookupVar env key = Map.find key env.vars
     let addFunc env key value = { env with funcs=(Map.add key value env.funcs) }
@@ -38,6 +52,13 @@ let evaluateProgram (compUnit: CompilationUnit<Type>) =
                     | Sub -> VInt(n1 - n2)
                     | Mul -> VInt(n1 * n2)
                     | Div -> VInt(n1 / n2)
+                    | Mod -> VInt(n1 % n2)
+                    | GT -> VBool(n1 > n2)
+                    | LT -> VBool(n1 < n2)
+                    | EQ -> VBool(n1 = n2)
+                | VBool b1, VBool b2 ->
+                    match op with
+                    | EQ -> VBool(b1 = b2)
             
             env'', vRes
         | Assign(_, _, ident, assExpr) ->
@@ -70,9 +91,48 @@ let evaluateProgram (compUnit: CompilationUnit<Type>) =
                 let env', exprVal = evaluate env expr
                 env', vals @ [exprVal])
             |> (fun (env', vals) ->
-                env', List.last vals)
-        | Func(_, _, name, parameters, _, block) ->
-            Env.addFunc env name block, VUnit()
+                match vals with
+                | [] -> env', VUnit()
+                | vals -> env', List.last vals)
+        | Func(_, _, name, params, _, block) ->
+            Env.addFunc env name (params |> List.unzip |> fst, block), VUnit()
+        | Call(_, _, name, args) ->
+            let (params, block) = Env.lookupFunc env name
+            let (env', argValues) =
+                ((env, []), args)
+                ||> List.fold (fun (env, values) expr ->
+                    let env', value = evaluate env expr
+                    env', values @ [value])
+            
+            let paramVars =
+                (params, argValues)
+                ||> List.zip
+                |> Map.ofList
+                
+            let env'' = Env.extendWith env' { vars=paramVars; funcs=Map.empty }
+            
+            let _, callResultValue = evaluate env'' block
+            
+            env, callResultValue
+        | While(_, _, cond, block) ->
+            let rec inner env =
+                match evaluate env cond |> snd with
+                | VBool b ->
+                    if b then
+                        let env', _ = evaluate env block
+                        inner env'
+                    else
+                        ()
+            
+            inner env
+            env, VUnit()
+        | Print(_, _, expr) ->
+            let env', value = evaluate env expr
+            match value with
+            | VInt n -> printfn $"{n}"
+            | VBool b -> printfn $"{b}"
+            env', value
+            
             
     match compUnit with
     | CompilationUnit expr -> evaluate Env.empty expr

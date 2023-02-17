@@ -11,6 +11,10 @@ type BinOpKind =
     | Sub
     | Mul
     | Div
+    | Mod
+    | EQ
+    | GT
+    | LT
 
 let binOpStr op =
     match op with
@@ -18,6 +22,9 @@ let binOpStr op =
     | Sub -> "-"
     | Mul -> "*"
     | Div -> "/"
+    | EQ -> "=="
+    | GT -> ">"
+    | LT -> "<"
 
 type Mutability =
     | Mutable
@@ -48,6 +55,9 @@ type Expr<'a> =
     | Block of 'a * Location * Expr<'a> list
     | Func of 'a * Location * string * (string * Type) list * Type * Expr<'a>
     | Call of 'a * Location * string * Expr<'a> list
+    | While of 'a * Location * Expr<'a> * Expr<'a>
+    // For prototyping
+    | Print of 'a * Location * Expr<'a>
 
 type UntypedExpr = Expr<unit>
 type TypedExpr = Expr<Type>

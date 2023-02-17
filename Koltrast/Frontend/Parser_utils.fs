@@ -18,13 +18,16 @@ let getExprLoc (expr: UntypedExpr) =
     | Block(_,l,_) -> l
     | Func(_,l,_,_,_,_) -> l
     | Call(_,l,_,_) -> l
+    | While(_,l,_,_) -> l
+    // For prototyping
+    | Print(_,l,_) -> l
 
 let isValidIdentChar c =
     ['_'] @ ['A'..'Z'] @ ['a'..'z']
     |> Seq.exists (fun ch -> ch = c)
 
 let isKeyword str =
-    [| "let"; "mut" |]
+    [| "let"; "mut"; "print"; "while" |]
     |> Seq.exists (fun kw -> str = kw)
 
 let locFromFParsecPos (startPos: Position) (endPos: Position) = {
