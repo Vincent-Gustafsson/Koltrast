@@ -1,6 +1,4 @@
 {
-    fn foo(bar: int) -> unit {
-    }
-    foo()
-    1+1
+    let mut foo = 69
+    foo = 420
 }
