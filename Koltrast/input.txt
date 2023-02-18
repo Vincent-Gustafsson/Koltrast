@@ -1,4 +1,12 @@
 {
-    let mut foo = 69
-    foo = 420
+    fn add(a: i64) -> i64 -> i64
+    {
+        fn inner(b: i64) -> i64
+        {
+            a + b
+        }
+    }
+    
+    let curried = add(3)
+    curried(4)
 }

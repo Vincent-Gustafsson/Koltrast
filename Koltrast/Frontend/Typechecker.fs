@@ -8,7 +8,7 @@ open Microsoft.FSharp.Collections
 
 type Env = {
     vars: Map<string, (Type * Mutability)>
-    funcs: Map<string, (Type list * Type)>
+    funcs: Map<string, Type>
 }
 
 module Env =
@@ -16,7 +16,7 @@ module Env =
     let addVar env key value = {env with vars=(Map.add key value env.vars)}
     let lookupVar env key: Option<Type * Mutability> = Map.tryFind key (env.vars)
     let addFunc env key value = {env with funcs=(Map.add key value env.funcs)}
-    let lookupFunc env key: Option<Type list * Type> = Map.tryFind key (env.funcs)
+    let lookupFunc env key: Option<Type> = Map.tryFind key (env.funcs)
 
 
 let mkTypeError (src: string list) (loc: Location) (errMsg: string) (hint: string) =
@@ -45,23 +45,34 @@ let rec typeBlock (src: string list) (env: Env) (loc: Location) (exprs: UntypedE
     List.mapFold (fun env expr ->
         match infer env expr with
         | Ok(tExpr, ty) ->
-            match tExpr with
-            | InferredVarDecl(_, _, name, mut, tyOpt, _) ->
-                let env' = Env.addVar env name (ty, mut)
-                (Ok(tExpr, ty), env')
-            | AnnVarDecl(_, _, name, mut, ty, _) ->
-                let env' = Env.addVar env name (ty, mut)
-                (Ok(tExpr, ty), env')
-            | Func(_, _, name, params, retTy, _) ->
-                let paramTypes =
-                    params
-                    |> List.unzip
-                    |> snd
-
-                let env' = Env.addFunc env name (paramTypes, retTy)
-                (Ok(tExpr, ty), env')
+            match ty with
+            | Type.Fun _ ->
+                match tExpr with
+                | InferredVarDecl(_, _, name, mut, tyOpt, _) ->
+                    let env' = Env.addFunc env name ty
+                    (Ok(tExpr, ty), env')
+                | AnnVarDecl(_, _, name, mut, ty, _) ->
+                    let env' = Env.addFunc env name ty
+                    (Ok(tExpr, ty), env')
+                | Func(ty, _, name, _, _, _) ->
+                    let env' = Env.addFunc env name ty
+                    (Ok(tExpr, ty), env')
+                | _ ->
+                    (Ok(tExpr, ty), env)
+                
             | _ ->
-                (Ok(tExpr, ty), env)
+                match tExpr with
+                | InferredVarDecl(_, _, name, mut, tyOpt, _) ->
+                    let env' = Env.addVar env name (ty, mut)
+                    (Ok(tExpr, ty), env')
+                | AnnVarDecl(_, _, name, mut, ty, _) ->
+                    let env' = Env.addVar env name (ty, mut)
+                    (Ok(tExpr, ty), env')
+                | Func(ty, _, name, _, _, _) ->
+                    let env' = Env.addFunc env name ty
+                    (Ok(tExpr, ty), env')
+                | _ ->
+                    (Ok(tExpr, ty), env)
         | Error e -> (Error e, env)
     )
     |> (fun (checkResults, env') ->
@@ -88,17 +99,17 @@ and inferExpr (src: string list) (env: Env) (expr: UntypedExpr): Result<TypedExp
     let check = checkExpr src
     
     match expr with
-    | NumericLiteral(_,loc, num) -> Ok(TypedExpr.NumericLiteral(Type.Int, loc, num), Type.Int)
+    | NumericLiteral(_,loc, num) -> Ok(TypedExpr.NumericLiteral(Type.I64, loc, num), Type.I64)
     | BoolLiteral(_,loc, b) -> Ok(TypedExpr.BoolLiteral(Type.Bool, loc, b), Type.Bool)
     | Ident(_,loc, name) ->
-        match Env.lookupVar env name with
-        | Some (ty, _) -> Ok(TypedExpr.Ident(ty, loc, name), ty)
-        | None ->
+        match Env.lookupVar env name, Env.lookupFunc env name with
+        | Some (ty, _), None | None, Some (ty)  -> Ok(TypedExpr.Ident(ty, loc, name), ty)
+        | None, None ->
             Error([
                 mkTypeError
                     src
                     loc
-                    $"undefined variable {name}"
+                    $"undefined name {name}"
                     $""
             ])
     | BinOp(_,loc, op, l, r) ->
@@ -112,33 +123,33 @@ and inferExpr (src: string list) (env: Env) (expr: UntypedExpr): Result<TypedExp
                         mkTypeError
                            src
                            loc
-                           $"operands' types not consistent. they have type {lType} and {rType}"
-                           $"{lType} {binOpStr op} {rType}"
+                           $"operands' types not consistent. they have type {typeToStr lType} and {typeToStr rType}"
+                           $"{typeToStr lType} {binOpStr op} {typeToStr rType}"
                     ])
                 else
                     match op with
                     | Add | Sub | Mul | Div | Mod ->
-                        if lType = Type.Int then
-                            Ok (TypedExpr.BinOp (Int, loc, op, typedL, typedR), Int)
+                        if lType = Type.I64 then
+                            Ok (TypedExpr.BinOp (I64, loc, op, typedL, typedR), I64)
                         else
                             Error([
                                 mkTypeError
                                     src
                                     loc
-                                    $"invalid operand types. they have type {lType} and {rType}, expected ({Int})"
-                                    $"{lType} {binOpStr op} {rType}"
+                                    $"invalid operand types. they have type {typeToStr lType} and {typeToStr rType}, expected ({typeToStr I64})"
+                                    $"{typeToStr lType} {binOpStr op} {typeToStr rType}"
                             ])
-                    | GT | LT ->
+                    | GtEq | LtEq | Gt | Lt ->
                         match lType, rType with
-                        | Int, Int -> Ok(TypedExpr.BinOp(Bool, loc, op, typedL, typedR), Bool)
+                        | I64, I64 -> Ok(TypedExpr.BinOp(Bool, loc, op, typedL, typedR), Bool)
                         | _ -> Error([
                                 mkTypeError
                                     src
                                     loc
-                                    $"invalid operand types. they have type {lType} and {rType}, expected ({Int})"
-                                    $"{lType} {binOpStr op} {rType}"
+                                    $"invalid operand types. they have type {typeToStr lType} and {typeToStr rType}, expected ({typeToStr I64})"
+                                    $"{typeToStr lType} {binOpStr op} {typeToStr rType}"
                             ])
-                    | EQ ->
+                    | Eq ->
                         if lType = rType then
                             Ok (TypedExpr.BinOp (Bool, loc, op, typedL, typedR), Bool)
                         else
@@ -146,8 +157,8 @@ and inferExpr (src: string list) (env: Env) (expr: UntypedExpr): Result<TypedExp
                                 mkTypeError
                                     src
                                     loc
-                                    $"invalid operand types. they have type {lType} and {rType}, expected ({Int} or {Bool}). ALSO, MISMATCH MAYBE TOO LAZY TO FIX GOOD ERROR REPORTING :)"
-                                    $"{lType} {binOpStr op} {rType}"
+                                    $"invalid operand types. they have type {typeToStr lType} and {typeToStr rType}, expected ({typeToStr I64} or {typeToStr Bool}). ALSO, MISMATCH MAYBE TOO LAZY TO FIX GOOD ERROR REPORTING :)"
+                                    $"{typeToStr lType} {binOpStr op} {typeToStr rType}"
                             ])
 
             return res
@@ -207,7 +218,19 @@ and inferExpr (src: string list) (env: Env) (expr: UntypedExpr): Result<TypedExp
         | None ->
             match infer env expr with
             | Ok(typedInitExpr, initExprTy) ->
-                let env' = Env.addVar env name (initExprTy, mut)
+                
+                
+                let env' =
+                    match initExprTy with
+                    | Type.Fun _ -> Env.addFunc env name initExprTy
+                    | _ -> Env.addVar env name (initExprTy, mut)
+                
+                
+                
+                // let env' = Env.addVar env name (initExprTy, mut)
+                
+                
+                
                 Ok(TypedExpr.InferredVarDecl(initExprTy, loc, name, mut, Some initExprTy, typedInitExpr), initExprTy)
             | Error e -> Error e
     | If(_, loc, condExpr, thenExpr, elseExpr) ->
@@ -222,16 +245,24 @@ and inferExpr (src: string list) (env: Env) (expr: UntypedExpr): Result<TypedExp
         | Error e -> Error e        
     | Block(_, loc, exprs) -> typeBlock src env loc exprs
     | Func(_, loc, name, parameters, retType, expr) ->
-        let env' = (env, parameters) ||> List.fold (fun env (name, ty) -> Env.addVar env name (ty, Immutable))
+        let env' =
+            (env, parameters)
+            ||> List.fold (fun env (paramName, paramTy) ->
+                let named = name
+                match paramTy with
+                | Fun _ -> Env.addFunc env paramName paramTy
+                | ty -> Env.addVar env paramName (ty, Immutable))
         
         match check env' expr retType with
         | Ok(TypedExpr.Block(ty, loc, tExprs)) ->
             let tBlock = TypedExpr.Block(ty, loc, tExprs)
-            Ok(TypedExpr.Func(Type.Unit, loc, name, parameters, retType, tBlock), Type.Unit)
+            let paramTypes = parameters |> List.unzip |> snd
+            let funTy = Type.Fun(paramTypes, retType)
+            Ok(TypedExpr.Func(funTy, loc, name, parameters, retType, tBlock), funTy)
         | Error e -> Error e
     | Call(_, loc, name, args) ->
         match Env.lookupFunc env name with
-        | Some (paramTypes, retTy) ->
+        | Some (Fun(paramTypes, retTy)) ->
             if args.Length = paramTypes.Length then
                 (args, paramTypes)
                 ||> List.zip
@@ -282,7 +313,7 @@ and inferExpr (src: string list) (env: Env) (expr: UntypedExpr): Result<TypedExp
         match infer env expr with
         | Ok (tExpr, ty) ->
             match ty with
-            | Int | Bool -> Ok(TypedExpr.Print(ty, loc, tExpr), Unit)
+            | I64 | Bool -> Ok(TypedExpr.Print(ty, loc, tExpr), Unit)
             | _ -> Error([
                 mkTypeError
                     src
@@ -308,8 +339,8 @@ and checkExpr (src: string list) (env: Env) (expr: UntypedExpr) (expectedTy: Typ
                     mkTypeError
                         src
                         loc
-                        $"type mismatch, {expectedTy} and {exprTy}"
-                        $"expected {expectedTy}"
+                        $"type mismatch, {typeToStr expectedTy} and {typeToStr exprTy}"
+                        $"expected {typeToStr expectedTy}"
                 ])
         | Error e -> Error e
 
