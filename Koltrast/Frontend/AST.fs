@@ -1,10 +1,6 @@
 module Koltrast.Frontend.AST
 
-type Location = {
-    StreamName: string
-    Start: {| Index: int; Line: int; Col: int |}
-    End: {| Index: int; Line: int; Col: int  |}
-}
+open Koltrast.Location
 
 type Type =
     | I8
@@ -15,7 +11,8 @@ type Type =
     | Fun of Type list * Type
 
 let rec typeToStr = function
-    | I64 -> "i32"
+    | I8 -> "i8"
+    | I64 -> "i64"
     | Bool -> "bool"
     | Unit -> "unit"
     | Array(ty, size) -> $"[{typeToStr ty} ; {size}]"
@@ -23,7 +20,8 @@ let rec typeToStr = function
 
 let strToType str =
     match str with
-    | "int" -> Some I64
+    | "i8" -> Some I8
+    | "i64" -> Some I64
     | "unit" -> Some Unit
     | "bool" -> Some Bool
     | _ -> None
@@ -59,14 +57,14 @@ type Mutability =
 
 type ExprKind<'a> =
     | Annot of {| AnnotatedExpr: Expr<'a>; Ty: Type |}
-    | NumericLiteral of int
+    | NumericLiteral of int64
     | BoolLiteral of bool
     | Ident of IdentExprKind
     | Block of BlockExprKind<'a>
     | BinOp of {| Op: BinOpKind;  Left: Expr<'a>; Right: Expr<'a> |}
     | Assign of {| Name: IdentExprKind; AssignExpr: Expr<'a> |}
-    | VarDecl of {| Name: IdentExprKind; Mut: Mutability; InitExprOpt: Option<Expr<'a>> |}
-    | Func of {| Name: IdentExprKind;  Parameters: IdentExprKind list; Body: BlockExprKind<'a> |}
+    | Var of {| Name: IdentExprKind; Mut: Mutability; InitExprOpt: Option<Expr<'a>>; TyAnnot: Option<Type> |}
+    | Func of {| Parameters: IdentExprKind list; Body: BlockExprKind<'a>; TyAnnot: Type |}
     | If of {| Cond: Expr<'a>; ThenExpr: Expr<'a>; ElseExpr: Expr<'a> |}
     | FuncAppl of {| Name: IdentExprKind; Arguments: FuncArguments<'a> |}
     | While of {| Cond: Expr<'a>; Body: BlockExprKind<'a> |}
@@ -84,6 +82,3 @@ and Expr<'a> = {
 
 type UntypedExpr = Expr<unit>
 type TypedExpr = Expr<Type>
-
-type UntypedCompilationUnit = UntypedExpr
-type TypedCompilationUnit = TypedExpr

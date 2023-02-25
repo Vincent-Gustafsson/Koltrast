@@ -1,12 +1,9 @@
 {
-    fn add(a: i64) -> i64 -> i64
-    {
-        fn inner(b: i64) -> i64
-        {
-            a + b
-        }
-    }
+    let a = 0
+    1 + 2 * a
+    let foo = {690 % 420}
     
-    let curried = add(3)
-    curried(4)
+    let bar: i8 = 3
+    let baz: i64 = 1337
+    bar + baz
 }

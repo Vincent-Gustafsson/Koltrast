@@ -1,10 +1,10 @@
 ﻿module Program
 
-open Koltrast.ResultBuilder
+open Koltrast.Diagnostics
 open Koltrast.Frontend.AST
 open Koltrast.Frontend.Parser
 open Koltrast.Frontend.Typechecker
-open Koltrast.Interpreter
+open Koltrast.Middleend.IR
 
 let path = @"C:\Users\vince\RiderProjects\Koltrast\Koltrast\input.txt"
 
@@ -12,10 +12,15 @@ let src = System.IO.File.ReadAllLines(path) |> List.ofSeq
 
 match parseFile path with
 | Ok compUnit ->
-    match typeCheckCompilationUnit src compUnit with
-    | Ok typedCompUnit ->
-        let env, res = evaluateProgram typedCompUnit
-        printfn "[Result] %A" res
-    | Error e -> List.iter (fun err -> printfn "%s" err) e |> exit 1
-    
-| Error err -> printfn "%s" err |> exit 1
+    let diagnostics = DiagnosticBag(path)
+    match typeCheck diagnostics compUnit with
+    | Ok tAst ->
+        printfn $"{tAst}"
+        printfn "----------------------------"
+        let ir = generateIR tAst
+        List.iter (fun instr -> printfn $"  {instr}") ir
+    | Result.Error errors ->
+        List.iter (printfn "%s") errors
+        
+    | Result.Error e -> List.iter (printfn "%A") e
+| Result.Error err -> printfn "%s" err |> exit 1

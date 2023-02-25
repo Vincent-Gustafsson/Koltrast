@@ -1,26 +1,8 @@
 module Koltrast.Frontend.Parser_utils
 
 open FParsec
+open Koltrast.Location
 open AST
-
-let getNameFromIdent (expr: Expr<'a>) =
-    match expr with
-    | Ident(_,_,name) -> name
-
-let getExprLoc (expr: UntypedExpr) =
-    match expr with
-    | NumericLiteral(_,l,_) -> l
-    | BoolLiteral(_,l,_) -> l
-    | Ident(_, l, _) -> l
-    | BinOp(_,l,_,_,_) -> l
-    | Assign(_,l,_,_) -> l
-    | If(_,l,_,_,_) -> l
-    | Block(_,l,_) -> l
-    | Func(_,l,_,_,_,_) -> l
-    | Call(_,l,_,_) -> l
-    | While(_,l,_,_) -> l
-    // For prototyping
-    | Print(_,l,_) -> l
 
 let isValidIdentChar c =
     ['_'] @ ['A'..'Z'] @ ['a'..'z']
