@@ -224,10 +224,10 @@ let pVar = parse {
         (match (tyAnnOpt, initExprOpt) with
         | (Some (annLoc, ty), Some initExpr) ->
             let varExpr = mkExpr loc (Var({| Name=(ensureIdentExpr id); Mut=mut; InitExprOpt=(Some initExpr); TyAnnot=Some ty |}))
-            mkExpr annLoc (Annot({| AnnotatedExpr=varExpr; Ty=ty |}))
+            varExpr
         | (Some (annLoc, ty), None) ->
             let varExpr = mkExpr loc (Var({| Name=(ensureIdentExpr id); Mut=mut; InitExprOpt=None; TyAnnot=Some ty |}))
-            mkExpr annLoc (Annot({| AnnotatedExpr=varExpr; Ty=ty |}))
+            varExpr
         | (None, Some initExpr) ->
             mkExpr loc (Var({| Name=(ensureIdentExpr id); Mut=mut; InitExprOpt=(Some initExpr); TyAnnot=None |}))
         | (None, None) -> failwith "covered by the fail parser above.")
@@ -247,6 +247,8 @@ let func = parse {
     
     do! keyword Fn
 
+    let! nameOpt = opt ident
+    
     let! funcTyStartPos = getPosition
 
     let! parameters = betweenParens (sepBy ((ident |>> ensureIdentExpr) .>>. (symbol Colon >>. tyAnnot |>> snd)) (symbol Comma))
@@ -267,9 +269,9 @@ let func = parse {
         let paramNames = parameters |> List.unzip |> fst
         let paramTypes = parameters |> List.unzip |> snd
         let funTyAnnot = Type.Fun(paramTypes, retType)
-        let funcExpr = mkExpr funcLoc (Func({| Parameters=paramNames; Body=(ensureBlockExpr body); TyAnnot=funTyAnnot |}))
-        
-        mkExpr funcTyLoc (Annot({| AnnotatedExpr=funcExpr; Ty=funTyAnnot |}))
+        match nameOpt with
+        | Some name ->mkExpr funcLoc (Func({| Name=(ensureIdentExpr name); Parameters=paramNames; Body=(ensureBlockExpr body); TyAnnot=funTyAnnot |}))
+        | None -> mkExpr funcLoc (AnonFunc({| Parameters=paramNames; Body=(ensureBlockExpr body); TyAnnot=funTyAnnot |}))
     )
 }
 

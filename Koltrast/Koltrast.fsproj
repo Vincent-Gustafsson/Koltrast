@@ -13,13 +13,18 @@
         <Compile Include="Frontend\Parser_utils.fs" />
         <Compile Include="Frontend\Parser.fs" />
         <Compile Include="Frontend\Typechecker.fs" />
-        <Content Include="input.txt" />
+        <Compile Include="Frontend\FuncTransform.fs" />
         <Compile Include="Middleend\IR.fs" />
-        <Compile Include="Program.fs" />
     </ItemGroup>
 
     <ItemGroup>
       <PackageReference Include="FParsec" Version="2.0.0-beta2" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Include="Backend\Codegen.fs" />
+      <Compile Include="Program.fs" />
+      <Content Include="input.txt" />
     </ItemGroup>
 
 </Project>

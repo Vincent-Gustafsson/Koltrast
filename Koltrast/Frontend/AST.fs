@@ -56,7 +56,6 @@ type Mutability =
     | Immutable
 
 type ExprKind<'a> =
-    | Annot of {| AnnotatedExpr: Expr<'a>; Ty: Type |}
     | NumericLiteral of int64
     | BoolLiteral of bool
     | Ident of IdentExprKind
@@ -64,7 +63,8 @@ type ExprKind<'a> =
     | BinOp of {| Op: BinOpKind;  Left: Expr<'a>; Right: Expr<'a> |}
     | Assign of {| Name: IdentExprKind; AssignExpr: Expr<'a> |}
     | Var of {| Name: IdentExprKind; Mut: Mutability; InitExprOpt: Option<Expr<'a>>; TyAnnot: Option<Type> |}
-    | Func of {| Parameters: IdentExprKind list; Body: BlockExprKind<'a>; TyAnnot: Type |}
+    | Func of {| Name: IdentExprKind; Parameters: IdentExprKind list; Body: BlockExprKind<'a>; TyAnnot: Type |}
+    | AnonFunc of {| Parameters: IdentExprKind list; Body: BlockExprKind<'a>; TyAnnot: Type |}
     | If of {| Cond: Expr<'a>; ThenExpr: Expr<'a>; ElseExpr: Expr<'a> |}
     | FuncAppl of {| Name: IdentExprKind; Arguments: FuncArguments<'a> |}
     | While of {| Cond: Expr<'a>; Body: BlockExprKind<'a> |}

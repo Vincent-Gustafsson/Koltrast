@@ -1,9 +1,3 @@
 {
-    let a = 0
-    1 + 2 * a
-    let foo = {690 % 420}
-    
-    let bar: i8 = 3
-    let baz: i64 = 1337
-    bar + baz
+    let add = fn () -> (i64 -> bool) { fn (a: i8) -> bool { a == 1 } }
 }
