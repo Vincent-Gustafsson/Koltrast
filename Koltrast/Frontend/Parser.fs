@@ -270,8 +270,8 @@ let func = parse {
         let paramTypes = parameters |> List.unzip |> snd
         let funTyAnnot = Type.Fun(paramTypes, retType)
         match nameOpt with
-        | Some name ->mkExpr funcLoc (Func({| Name=(ensureIdentExpr name); Parameters=paramNames; Body=(ensureBlockExpr body); TyAnnot=funTyAnnot |}))
-        | None -> mkExpr funcLoc (AnonFunc({| Parameters=paramNames; Body=(ensureBlockExpr body); TyAnnot=funTyAnnot |}))
+        | Some name ->mkExpr funcLoc (Func({| Name=(ensureIdentExpr name); Parameters=paramNames; Body=body; TyAnnot=funTyAnnot |}))
+        | None -> mkExpr funcLoc (AnonFunc({| Parameters=paramNames; Body=body; TyAnnot=funTyAnnot |}))
     )
 }
 
@@ -281,7 +281,7 @@ let pwhile =
         >>. expr <?> "while condition"
         .>>. expr  <?> "while block"
     ) <?> "while loop"
-    |>> (fun (loc, (cond, block)) -> mkExpr loc (ExprKind.While({| Cond=cond; Body=(ensureBlockExpr block) |})))
+    |>> (fun (loc, (cond, block)) -> mkExpr loc (ExprKind.While({| Cond=cond; Body=block |})))
 
 let pprint = getLoc (keyword Print >>. expr) |>> (fun (loc, e) -> mkExpr loc (ExprKind.Print(e)))
 

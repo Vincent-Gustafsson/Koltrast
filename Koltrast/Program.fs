@@ -14,7 +14,9 @@ let src = System.IO.File.ReadAllLines(path) |> List.ofSeq
 match parseFile path with
 | Ok compUnit ->
     let compUnit' = transformFunctions compUnit
-    let diagnostics = DiagnosticBag(path)
+    compUnit' KINDA WORKS, HOWEVER, GENERATES / KEEPS THE ANONFUNC IN OUTER BLOCK???
+    // let diagnostics = DiagnosticBag(path)
+    (**
     match typeCheck diagnostics compUnit' with
     | Ok tAst ->
         printfn $"{tAst}"
@@ -26,4 +28,5 @@ match parseFile path with
         ) ir
     | Result.Error errors ->
         List.iter (printfn "%s") errors
+    **)
 | Result.Error err -> printfn "%s" err |> exit 1

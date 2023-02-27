@@ -1,5 +1,5 @@
 module Koltrast.Frontend.Typechecker
-
+(**
 open System.Collections.Generic
 open Koltrast.Diagnostics
 open Koltrast.OptionBuilder
@@ -248,3 +248,4 @@ let typeCheck diagnostics expr =
     match inferType diagnostics env expr with
     | Some tExpr -> Ok tExpr
     | None -> Result.Error(diagnostics.genDiagnostics())
+**)

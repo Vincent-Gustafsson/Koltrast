@@ -1,5 +1,5 @@
 module Koltrast.Middleend.IR
-
+(**
 open Koltrast.Frontend.AST
 
 
@@ -182,3 +182,4 @@ let generateIR expr =
                 
     gen expr |> ignore
     builder.getIR()
+**)
