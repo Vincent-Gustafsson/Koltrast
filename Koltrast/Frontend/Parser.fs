@@ -57,6 +57,7 @@ type KeywordKind =
     | Mut
     | While
     | Print
+    | Entry
 
 // Parse a symbol and then strip trailing ws
 let keyword kw =
@@ -66,6 +67,7 @@ let keyword kw =
     | Mut -> skipString "mut"
     | While -> skipString "while"
     | Print -> skipString "print"
+    | Entry -> skipString "entry"
     .>> ws)
 
 let betweenParens p = between (symbol OpenParen) (symbol CloseParen) p
@@ -247,18 +249,21 @@ let func = parse {
     
     do! keyword Fn
 
-    let! nameOpt = opt ident
+    let! isEntry = (opt (keyword Entry)) |>> Option.isSome
     
-    let! funcTyStartPos = getPosition
-
+    let! nameOpt = (opt ident) >>= (function
+        | Some name -> preturn (Some name)
+        | None ->
+            if isEntry
+                then fail "only named functions can be the entrypoint" >>. preturn None
+                else preturn None
+    )
+    
     let! parameters = betweenParens (sepBy ((ident |>> ensureIdentExpr) .>>. (symbol Colon >>. tyAnnot |>> snd)) (symbol Comma))
     
     do! symbol RArrow
     
     let! retType = tyAnnot |>> snd
-    
-    let! funcTyEndPos = getPosition
-    let funcTyLoc = locFromFParsecPos funcTyStartPos funcTyEndPos
     
     let! body = block
 
@@ -270,8 +275,12 @@ let func = parse {
         let paramTypes = parameters |> List.unzip |> snd
         let funTyAnnot = Type.Fun(paramTypes, retType)
         match nameOpt with
-        | Some name ->mkExpr funcLoc (Func({| Name=(ensureIdentExpr name); Parameters=paramNames; Body=body; TyAnnot=funTyAnnot |}))
-        | None -> mkExpr funcLoc (AnonFunc({| Parameters=paramNames; Body=body; TyAnnot=funTyAnnot |}))
+        | Some name ->
+            let fnExpr = mkExpr funcLoc (Func({| Name=(ensureIdentExpr name); Parameters=paramNames; Body=body; TyAnnot=funTyAnnot |}))
+            if isEntry
+                then mkExpr funcLoc (Entrypoint(fnExpr))
+                else fnExpr
+        | None ->  mkExpr funcLoc (AnonFunc({| Parameters=paramNames; Body=body; TyAnnot=funTyAnnot |}))
     )
 }
 
@@ -298,7 +307,7 @@ opp.TermParser <- choice [
     (betweenParens expr)
 ]
 
-let program = block .>> eof
+let program = ws >>. many (func <|> pVar) .>> eof
 
 let parseFile path =
     match runParserOnFile program () path System.Text.Encoding.Default with

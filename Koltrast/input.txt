@@ -1,9 +1,8 @@
+let a: (bool -> i8) = fn (a: bool) -> i8 {4}
+
+let add = fn () -> (i64 -> bool)
 {
-    let add = fn () -> (i64 -> bool)
-    {
-        let inner = fn (a: i8) -> bool { a == 1 }
-        true
-    }
-    
-    fn () -> (unit -> bool) {1}
+    fn (a: i64) -> bool { a == 1 }
 }
+
+fn entry main() -> unit {}

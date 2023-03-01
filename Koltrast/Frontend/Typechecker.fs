@@ -1,5 +1,5 @@
 module Koltrast.Frontend.Typechecker
-(**
+
 open System.Collections.Generic
 open Koltrast.Diagnostics
 open Koltrast.OptionBuilder
@@ -71,18 +71,23 @@ and inferType (diagnostics: DiagnosticBag) (env: Env) (expr: UntypedExpr): Typed
         | Some(ty, _) -> Some(mkTypedExpr (Ident name) expr.Loc ty)
         | None -> reportTypeError $"'{name}' is not defined." ""; None
     | Var v ->
-        match v.InitExprOpt with
-        | Some initExpr ->
-            match infer initExpr with
-            | Some tyInitExpr ->
-                env.addVar v.Name (tyInitExpr.Metadata, v.Mut)
-                Some(mkTypedExpr (Var({| Name=v.Name; Mut=v.Mut; InitExprOpt=Some tyInitExpr; TyAnnot=v.TyAnnot |})) expr.Loc Unit)
-            | None -> None
-        | None ->
-            match v.TyAnnot with
-            | Some typeAnnotation ->
+        match v.TyAnnot, v.InitExprOpt with
+        | Some typeAnnotation, Some initExpr ->
+            match check initExpr typeAnnotation with
+            | Some typedInitExpr ->
                 env.addVar v.Name (typeAnnotation, v.Mut)
-                Some(mkTypedExpr (Var({| Name=v.Name; Mut=v.Mut; InitExprOpt=None; TyAnnot=v.TyAnnot |})) expr.Loc Unit)
+                Some(mkTypedExpr (Var {| Name=v.Name; Mut=v.Mut; InitExprOpt=Some typedInitExpr; TyAnnot=v.TyAnnot |}) expr.Loc Unit)
+            | None -> None
+        | Some typeAnnotation, None ->
+            env.addVar v.Name (typeAnnotation, v.Mut)
+            Some(mkTypedExpr (Var({| Name=v.Name; Mut=v.Mut; InitExprOpt=None; TyAnnot=v.TyAnnot |})) expr.Loc Unit)
+        | None, Some initExpr ->
+            match infer initExpr with
+            | Some typedInitExpr ->
+                env.addVar v.Name (typedInitExpr.Metadata, v.Mut)
+                Some(mkTypedExpr (Var {| Name=v.Name; Mut=v.Mut; InitExprOpt=Some typedInitExpr; TyAnnot=None |}) expr.Loc Unit)
+            | None -> None
+        | _ -> failwith "covered by the parser (Var)"
     | Assign ass ->
         match env.lookupVar ass.Name with
         | Some (ty, mut) ->
@@ -124,7 +129,8 @@ and inferType (diagnostics: DiagnosticBag) (env: Env) (expr: UntypedExpr): Typed
                             $"{typeToStr lType} {binOpStr bin.Op} {typeToStr rType}"
                         ; None
                 | Eq ->
-                    if lType = Bool || isIntType lType then
+                    match lType with
+                    | Bool ->
                         if lType = rType then
                             Some(mkTypedExpr (BinOp({| Op=bin.Op; Left=typedLeft; Right=typedRight |})) expr.Loc Bool)
                         else
@@ -132,7 +138,9 @@ and inferType (diagnostics: DiagnosticBag) (env: Env) (expr: UntypedExpr): Typed
                                 $"type mismatch. they have type {typeToStr lType} and {typeToStr rType}"
                                 $"{typeToStr lType} {binOpStr bin.Op} {typeToStr rType}"
                             ; None
-                    else
+                    | lType when isIntType lType && isIntType rType ->
+                        Some(mkTypedExpr (BinOp({| Op=bin.Op; Left=typedLeft; Right=typedRight |})) expr.Loc Bool)
+                    | _ ->
                         reportTypeError
                             $"invalid operand types. they have type {typeToStr lType} and {typeToStr rType}, expected ({typeToStr I8}, {typeToStr I64}, {typeToStr Bool})"
                             $"{typeToStr lType} {binOpStr bin.Op} {typeToStr rType}"
@@ -187,32 +195,28 @@ and inferType (diagnostics: DiagnosticBag) (env: Env) (expr: UntypedExpr): Typed
         ||> List.zip
         |> List.iter (fun (name, ty) -> env.addVar name (ty, Immutable))
         
-        let tBlockOpt =
-            fn.Body
-            |> List.map infer
-            |> (fun result ->
-                if List.contains None result then
-                    None
-                else
-                    let tExprs = List.choose id result
-                    // I should probably change the data structure of blocks (https://stackoverflow.com/a/1175111)
-                    match tExprs with
-                    | [] -> Some(Block [], Type.Unit)
-                    | tExprs ->
-                        let retTy = (List.last tExprs).Metadata
-                        Some(Block tExprs,retTy)
-            )
+        let tBlockOpt = infer fn.Body
         
         env.leaveScope()
         
         match tBlockOpt with
-        | Some (Block(tBlock), blockTy) ->
-            if blockTy = retTy then
+        | Some tBlock ->
+            if tBlock.Metadata = retTy then
                 Some(mkTypedExpr (Func {| Name=fn.Name; Parameters=fn.Parameters; Body=tBlock; TyAnnot=fn.TyAnnot |}) expr.Loc Unit)
             else
+                // get location of retExpr later on!
+                diagnostics.add {
+                    Message=($"unexpected return type, expected '{typeToStr retTy}', got '{typeToStr tBlock.Metadata}'")
+                    Hint=""
+                    Loc=tBlock.Loc
+                    Kind=DiagnosticKind.Type
+                    Level=DiagnosticLevel.Error
+                }
+                None
+                (**
                 reportTypeError
-                    $"unexpected return type, expected '{typeToStr retTy}', got '{typeToStr blockTy}'"
-                    ""; None
+                    $"unexpected return type, expected '{typeToStr retTy}', got '{typeToStr tBlock.Metadata}'"
+                    ""; None **)
         | None -> None
     | FuncAppl appl ->
         match env.lookupVar appl.Name with
@@ -236,16 +240,60 @@ and inferType (diagnostics: DiagnosticBag) (env: Env) (expr: UntypedExpr): Typed
             reportTypeError
                 $"'{appl.Name}' is not defined"
                 ""; None
+    | Entrypoint fnExpr ->
+        match infer fnExpr with
+        | Some typedFnExpr ->
+            Some(mkTypedExpr (Entrypoint typedFnExpr) expr.Loc typedFnExpr.Metadata)
+        | None -> None
+    | AnonFunc anFn -> 
+        env.enterScope()
+        
+        let paramTypes, retTy =
+            match anFn.TyAnnot with
+            | Fun(parameters, retTy) -> parameters, retTy
+        
+        (anFn.Parameters, paramTypes)
+        ||> List.zip
+        |> List.iter (fun (name, ty) -> env.addVar name (ty, Immutable))
+        
+        let tBlockOpt = infer anFn.Body
+        
+        env.leaveScope()
+        
+        match tBlockOpt with
+        | Some tBlock ->
+            if tBlock.Metadata = retTy then
+                Some(mkTypedExpr (AnonFunc {| Parameters=anFn.Parameters; Body=tBlock; TyAnnot=anFn.TyAnnot |}) expr.Loc anFn.TyAnnot)
+            else
+                // get location of retExpr later on!
+                diagnostics.add {
+                    Message=($"unexpected return type, expected '{typeToStr retTy}', got '{typeToStr tBlock.Metadata}'")
+                    Hint=""
+                    Loc=tBlock.Loc
+                    Kind=DiagnosticKind.Type
+                    Level=DiagnosticLevel.Error
+                }
+                None
+                (**
+                reportTypeError
+                    $"unexpected return type, expected '{typeToStr retTy}', got '{typeToStr tBlock.Metadata}'"
+                    ""; None **)
+        | None -> None
         
         
         
-    | AnonFunc _ -> failwith "Should be taken care of by the transformFunctions pass."
     | _ -> failwith $"missing infer case for {expr._expr}"
 
-let typeCheck diagnostics expr =
+let typeCheck diagnostics exprs: Result<TypedExpr list,DiagnosticBag> =
     let env = Env()
+    env.enterScope()
     
-    match inferType diagnostics env expr with
-    | Some tExpr -> Ok tExpr
-    | None -> Result.Error(diagnostics.genDiagnostics())
-**)
+    exprs
+    |> List.map (fun e -> inferType diagnostics env e)
+    |> (fun result ->
+        if List.exists Option.isNone result then
+            Result.Error diagnostics
+        else
+            result
+            |> List.map (function | Some expr -> expr)
+            |> Ok)

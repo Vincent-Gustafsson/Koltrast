@@ -63,8 +63,9 @@ type ExprKind<'a> =
     | BinOp of {| Op: BinOpKind;  Left: Expr<'a>; Right: Expr<'a> |}
     | Assign of {| Name: IdentExprKind; AssignExpr: Expr<'a> |}
     | Var of {| Name: IdentExprKind; Mut: Mutability; InitExprOpt: Option<Expr<'a>>; TyAnnot: Option<Type> |}
-    | Func of {| Name: IdentExprKind; Parameters: IdentExprKind list; Body: Expr<'a>; TyAnnot: Type |}
     | AnonFunc of {| Parameters: IdentExprKind list; Body: Expr<'a>; TyAnnot: Type |}
+    | Func of {| Name: IdentExprKind; Parameters: IdentExprKind list; Body: Expr<'a>; TyAnnot: Type |}
+    | Entrypoint of Expr<'a>
     | If of {| Cond: Expr<'a>; ThenExpr: Expr<'a>; ElseExpr: Expr<'a> |}
     | FuncAppl of {| Name: IdentExprKind; Arguments: FuncArguments<'a> |}
     | While of {| Cond: Expr<'a>; Body: Expr<'a> |}

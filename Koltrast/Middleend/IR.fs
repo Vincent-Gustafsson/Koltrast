@@ -1,5 +1,6 @@
 module Koltrast.Middleend.IR
-(**
+
+open System.Collections.Generic
 open Koltrast.Frontend.AST
 
 
@@ -50,6 +51,7 @@ type IRBuilder() =
     let mutable currentScope = -1
     let mutable labels: Map<string, Instruction list> = Map.empty |> Map.add "entry" []
     let mutable currentLabel: string = "entry"
+    let mutable labelStack: Stack<string> = Stack()
     member this.emit (instr: Instruction) =
         labels <- Map.add currentLabel (labels[currentLabel] @ [instr] ) labels
 
@@ -62,11 +64,12 @@ type IRBuilder() =
     member this.exitScope() = currentScope <- currentScope - 1
     
     member this.enterLabel name =
+        labelStack.Push(currentLabel)
         if Option.isSome (Map.tryFind name labels)
         then ()
         else labels <- Map.add name [] labels
         currentLabel <- name
-    member this.exitLabel() = currentLabel <- "entry"
+    member this.exitLabel() = currentLabel <- labelStack.Pop()
     
     member this.addVar string =
         let scope = symbolTable[currentScope]
@@ -74,8 +77,14 @@ type IRBuilder() =
         symbolTable <- (List.mapi (fun i scope -> if currentScope = i then scope' else scope) symbolTable)
     
     member this.lookupVar name =
-        let scope = symbolTable[currentScope]
-        List.contains name scope
+        let rec inner scopes =
+            match scopes with
+            | [] -> false
+            | scope::scopes' ->
+                match List.contains name scope with
+                | true -> true
+                | false -> inner scopes'
+        inner (symbolTable)
     
     member this.getIR() = labels
 
@@ -125,7 +134,7 @@ let generateIR expr =
                 builder.emit (Load {| Dst=temp; Symbol=(Symbol id) |})
                 Some temp
             else
-                failwith "umm, no clue what to do here. This shouldn't happen."
+                failwith $"umm, no clue what to do here. This shouldn't happen. (couldn't find ident '{id}')"
         | Assign ass ->
             if builder.lookupVar ass.Name then
                 let assExprSym = expectOperand (gen ass.AssignExpr) 
@@ -150,14 +159,7 @@ let generateIR expr =
                 else failwith "umm"
             )
             
-            let sym = 
-                match fn.Body with
-                | [] -> None
-                | [expr] -> gen expr
-                | allExprs ->
-                    allExprs
-                    |> List.map gen
-                    |> List.last
+            let sym = gen fn.Body
             
             builder.emit (Return sym)
             builder.exitScope()
@@ -182,4 +184,3 @@ let generateIR expr =
                 
     gen expr |> ignore
     builder.getIR()
-**)

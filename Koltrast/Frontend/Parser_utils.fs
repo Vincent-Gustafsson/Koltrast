@@ -9,7 +9,7 @@ let isValidIdentChar c =
     |> Seq.exists (fun ch -> ch = c)
 
 let isKeyword str =
-    [| "let"; "mut"; "print"; "while" |]
+    [| "let"; "mut"; "print"; "while"; "entry" |]
     |> Seq.exists (fun kw -> str = kw)
 
 let locFromFParsecPos (startPos: Position) (endPos: Position) = {

@@ -9,11 +9,14 @@
         <Compile Include="Location.fs" />
         <Compile Include="Diagnostics.fs" />
         <Compile Include="OptionBuilder.fs" />
+        <Compile Include="ResultBuilder.fs" />
         <Compile Include="Frontend\AST.fs" />
         <Compile Include="Frontend\Parser_utils.fs" />
         <Compile Include="Frontend\Parser.fs" />
         <Compile Include="Frontend\Typechecker.fs" />
         <Compile Include="Frontend\FuncTransform.fs" />
+        <Compile Include="Frontend\ValidateEntrypoint.fs" />
+        <Compile Include="Frontend\ValidateTopLevel.fs" />
         <Compile Include="Middleend\IR.fs" />
     </ItemGroup>
 
