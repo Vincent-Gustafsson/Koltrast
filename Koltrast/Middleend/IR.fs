@@ -2,9 +2,40 @@ module Koltrast.Middleend.IR
 
 open System.Collections.Generic
 open Koltrast.Frontend.AST
+________________________________________________
+Redo the instructions
+SSA??? (phi and stuff)
+Make it a bit higher level
+    Functions instead of labels
+Add types to everything
+Redo the Env
+Redo the builder
+Basically, redo *everything*
 
 
+/* module uwu */
 
+@0: function i32 @main() {
+0:
+    %0 = iconst 00000022
+    %1 = iconst 00000023
+    %2 = addi %0, %1
+    ret %2
+}
+
+
+let mut builder = ModuleBuilder::default()
+        .with_name("uwu");
+    let func = builder.new_function("main", &[], &Type::Integer(true, 32));
+    builder.switch_to_function(func);
+    let block = builder.push_block().unwrap();
+    builder.switch_to_block(block);
+    let x = builder.push_instruction(34.to_integer_operation()).unwrap();
+    let y = builder.push_instruction(35.to_integer_operation()).unwrap();
+    let z = builder.push_instruction(Operation::Add(x, y)).unwrap();
+    builder.set_terminator(Terminator::Return(z));
+    print!("{}", builder.build());
+________________________________________________
 type Instruction =
     | BinOp of {| Op: BinOpKind; Fst: Operand; Snd: Operand; Dst: Operand |}
     | Set of {| Value: Operand; Dst: Operand |}
