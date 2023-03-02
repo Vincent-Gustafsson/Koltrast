@@ -1,4 +1,3 @@
-let a: (bool -> i8) = fn (a: bool) -> i8 {4}
 
 let add = fn () -> (i64 -> bool)
 {

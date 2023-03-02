@@ -8,7 +8,7 @@ let genAnonName() =
     counter <- counter + 1
     $"anon_{counter}"
 
-let rec transformFunctions expr =
+let rec transform expr =
     match expr._expr with
     | Block exprs ->
         match exprs with
@@ -22,7 +22,7 @@ let rec transformFunctions expr =
                  { _expr=(Ident fnName); Loc=retExpr.Loc; Metadata=() }
                 ]
                 { _expr=(Block block'); Loc=expr.Loc; Metadata=() }
-            | _ -> { _expr=(Block [transformFunctions retExpr]); Loc=expr.Loc; Metadata=() }
+            | _ -> { _expr=(Block [transform retExpr]); Loc=expr.Loc; Metadata=() }
         | exprs ->
             let retExpr = List.last exprs
             match retExpr._expr with
@@ -33,22 +33,25 @@ let rec transformFunctions expr =
                  { _expr=(Ident fnName); Loc=retExpr.Loc; Metadata=() }
                 ]
                 
-                let exprs' = exprs[..exprs.Length-1] |> List.map (fun e -> transformFunctions e)
+                let exprs' = exprs[..exprs.Length-1] |> List.map (fun e -> transform e)
                 { _expr=(Block (exprs' @ epi)); Loc=expr.Loc; Metadata=() }
             | _ -> 
-                let exprs' = exprs |> List.map (fun e -> transformFunctions e)
+                let exprs' = exprs |> List.map (fun e -> transform e)
                 { _expr=(Block exprs'); Loc=expr.Loc; Metadata=() }
                 
     | Func fn ->
-        let body' = transformFunctions fn.Body 
+        let body' = transform fn.Body 
         { _expr=(Func {| Name=fn.Name; Body=body'; Parameters=fn.Parameters; TyAnnot=fn.TyAnnot |}); Loc=expr.Loc; Metadata=() }
     | Var v ->
         match v.InitExprOpt with
         | Some initExpr ->
             match initExpr._expr with
             | AnonFunc anFn ->
-                let body' = transformFunctions anFn.Body 
+                let body' = transform anFn.Body 
                 { _expr=(Func {| Name=v.Name; Body=body'; Parameters=anFn.Parameters; TyAnnot=anFn.TyAnnot |}); Loc=expr.Loc; Metadata=() }
             | _ -> expr
         | None -> expr
     | _ -> expr
+
+let transformFunctions exprs =
+    Ok (List.map (fun e -> transform e) exprs)

@@ -13,7 +13,7 @@ type Operand = { Value: OperandKind; Ty: Type }
 type InstructionKind =
     | BinOp of {| Op: BinOpKind; Dst: Operand; Fst: Operand; Snd: Operand |}
     | Store of {| Dst: Operand; Fst: Operand |}
-    | Return of Operand
+    | Return of Option<Operand>
 
 type Instruction = {
     Value: InstructionKind

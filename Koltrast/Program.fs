@@ -2,14 +2,16 @@
 
 open Koltrast.Diagnostics
 open Koltrast.Frontend.FuncTransform
+open Koltrast.Frontend.IR
 open Koltrast.Frontend.ValidateEntrypoint
 open Koltrast.Frontend.ValidateTopLevel
 open Koltrast.Frontend.Parser
 open Koltrast.Frontend.Typechecker
+open Koltrast.Frontend.GenerateIR
 open Koltrast.ResultBuilder
 open Microsoft.FSharp.Core
 
-let path = @"C:\Users\Vincent Gustafsson\RiderProjects\programmering-kurs\Koltrast\Koltrast\input.txt"
+let path = @"C:\Users\vince\RiderProjects\Koltrast\Koltrast\input.txt"
 let src = System.IO.File.ReadAllLines(path) |> List.ofSeq
 let diagnostics = DiagnosticBag(path)
 
@@ -32,22 +34,34 @@ let compUnit =
 let compilationResult = result {
     
     let! compUnit' = validateTopLevel diagnostics compUnit
-    let! compUnit'' = validateEntrypoint diagnostics compUnit'
-    let! typedCompUnit = typeCheck diagnostics compUnit''
+    let! compUnit'' = transformFunctions compUnit'
+    let! compUnit''' = validateEntrypoint diagnostics compUnit''
+    let! typedCompUnit = typeCheck diagnostics compUnit'''
     return typedCompUnit
 }
 
 
 match compilationResult with
 | Ok typedCompUnit ->
-    printfn "%A" typedCompUnit
+    // printfn "%A" typedCompUnit
     printfn "----------------------------"
-    (**
-        let ir = generateIR tAst
-        Map.iter (fun name instrs ->
-            printfn $"\n{name}:"
-            List.iter (fun instr -> printfn $"   {instr}") instrs
-        ) ir
-    **)
+    let entrypoint, functions = generateIr typedCompUnit
+    
+    printfn
+        $"
+-------
+Entrypoint: {entrypoint.Value}
+-------"
+    
+    List.iter (fun (fn: Function) ->
+        printfn "define T %s {" fn.Name
+        List.iter (fun (b: Block) ->
+            printfn $"{b.Name}:"
+            List.iter (fun instr ->
+                printfn $"  {instr}"
+            ) b.Instructions
+        ) fn.Blocks
+        printfn "}"
+    ) functions
     
 | Error diagnostics -> List.iter (printfn "%s") (diagnostics.genDiagnostics())
