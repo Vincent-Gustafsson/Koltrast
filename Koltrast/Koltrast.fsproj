@@ -17,7 +17,8 @@
         <Compile Include="Frontend\FuncTransform.fs" />
         <Compile Include="Frontend\ValidateEntrypoint.fs" />
         <Compile Include="Frontend\ValidateTopLevel.fs" />
-        <Compile Include="Middleend\IR.fs" />
+        <Compile Include="Frontend\IR.fs" />
+        <Compile Include="Frontend\GenerateIR.fs" />
     </ItemGroup>
 
     <ItemGroup>
