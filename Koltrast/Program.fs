@@ -45,12 +45,12 @@ match compilationResult with
 | Ok typedCompUnit ->
     // printfn "%A" typedCompUnit
     printfn "----------------------------"
-    let entrypoint, functions = generateIr typedCompUnit
+    let entrypoint, functions = generateIR typedCompUnit
     
     printfn
         $"
 -------
-Entrypoint: {entrypoint.Value}
+Entrypoint: {entrypoint}
 -------"
     
     List.iter (fun (fn: Function) ->
@@ -58,7 +58,7 @@ Entrypoint: {entrypoint.Value}
         List.iter (fun (b: Block) ->
             printfn $"{b.Name}:"
             List.iter (fun instr ->
-                printfn $"  {instr}"
+                printfn $"  {instr._instr}"
             ) b.Instructions
         ) fn.Blocks
         printfn "}"

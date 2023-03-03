@@ -18,6 +18,7 @@
         <Compile Include="Frontend\ValidateEntrypoint.fs" />
         <Compile Include="Frontend\ValidateTopLevel.fs" />
         <Compile Include="Frontend\IR.fs" />
+        <Compile Include="Frontend\IRBuilder.fs" />
         <Compile Include="Frontend\GenerateIR.fs" />
     </ItemGroup>
 

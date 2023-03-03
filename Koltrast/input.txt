@@ -4,4 +4,6 @@ let add = fn () -> (i64 -> bool)
     fn (a: i64) -> bool { a == 1 }
 }
 
-fn entry main() -> unit {}
+fn entry main() -> unit {
+    let foo = true
+}
