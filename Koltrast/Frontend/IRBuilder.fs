@@ -9,10 +9,10 @@ open Koltrast.Frontend.IR
 
 type Scope = {
     Symbols: Dictionary<string, Operand>
-    mutable VarCount: int
 }
 
 type IRBuilder() =
+    let mutable EntrypointName: Option<string> = None
     let mutable sealedFunctions: Function list = []
     
     let blockStack: Stack<BasicBlock> = Stack()
@@ -24,8 +24,8 @@ type IRBuilder() =
     
     
     member this.GenTempVar(ty: Type): Operand =
-        let tempVar = { _opnd=TempVar("%" + this.currentScope.VarCount.ToString()); Ty=ty }
-        this.currentScope.VarCount <- this.currentScope.VarCount + 1
+        let tempVar = { _opnd=TempVar("%" + this.currentBlock.VarCount.ToString()); Ty=ty }
+        this.currentBlock.VarCount <- this.currentBlock.VarCount + 1
         tempVar
     
     member this.AddVar(sourceName: string, ty: Type): Operand =
@@ -36,7 +36,7 @@ type IRBuilder() =
     member this.UpdateVar(sourceName: string, opnd: Operand): unit =
         this.currentScope.Symbols.Add(sourceName, opnd)
 
-    member this.getVar(sourceName: string): Operand =
+    member this.GetVar(sourceName: string): Operand =
         // I'm sorry for this code :(
         let rec lookup (scopes: Scope list) =
             match scopes with
@@ -51,7 +51,7 @@ type IRBuilder() =
         lookup (scopeStack.ToArray() |> List.ofArray)
 
     member this.EnterScope(): unit =
-        scopeStack.Push({ Symbols=Dictionary(); VarCount=0 })
+        scopeStack.Push({ Symbols=Dictionary() })
         
     member this.LeaveScope(): unit =
         scopeStack.Pop() |> ignore
@@ -62,6 +62,7 @@ type IRBuilder() =
             Instructions=[]
             Predecessors=[]
             Successors=[]
+            VarCount=0
         })
     
     member this.LeaveBlock(): unit =
@@ -83,6 +84,7 @@ type IRBuilder() =
             Instructions=[]
             Predecessors=[]
             Successors=[]
+            VarCount=0
         })
     
     member this.LeaveFunction(): unit =
@@ -90,4 +92,7 @@ type IRBuilder() =
         this.LeaveScope()
         sealedFunctions <- sealedFunctions @ [fnStack.Pop()]
 
-    member this.GetIR() = sealedFunctions
+    member this.SetEntrypoint(name: string): unit =
+        EntrypointName <- Some name
+    
+    member this.GetIR() = EntrypointName.Value, sealedFunctions

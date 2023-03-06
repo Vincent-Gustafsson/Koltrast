@@ -56,10 +56,10 @@ Entrypoint: {entrypoint}
     
     List.iter (fun (fn: Function) ->
         printfn "define %s %s {" (typeToStr fn.ReturnType) fn.Name
-        List.iter (fun (b: Block) ->
+        List.iter (fun (b: BasicBlock) ->
             printfn $"{b.Name}:"
             List.iter (fun instr ->
-                printfn $"  {instr._instr}"
+                printfn $"  {instr}"
             ) b.Instructions
         ) fn.Blocks
         printfn "}"
