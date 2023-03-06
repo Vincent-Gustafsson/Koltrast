@@ -2,6 +2,7 @@
 
 open Koltrast.Diagnostics
 open Koltrast.Frontend.FuncTransform
+open Koltrast.Frontend.AST
 open Koltrast.Frontend.IR
 open Koltrast.Frontend.ValidateEntrypoint
 open Koltrast.Frontend.ValidateTopLevel
@@ -54,7 +55,7 @@ Entrypoint: {entrypoint}
 -------"
     
     List.iter (fun (fn: Function) ->
-        printfn "define T %s {" fn.Name
+        printfn "define %s %s {" (typeToStr fn.ReturnType) fn.Name
         List.iter (fun (b: Block) ->
             printfn $"{b.Name}:"
             List.iter (fun instr ->

@@ -5,5 +5,9 @@ let add = fn () -> (i64 -> bool)
 }
 
 fn entry main() -> unit {
-    let foo = true
+    let mut foo = 10
+    let bar = {
+        foo = 20
+        foo + 10
+    }
 }

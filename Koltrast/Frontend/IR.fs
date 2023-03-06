@@ -3,54 +3,42 @@ module Koltrast.Frontend.IR
 open Koltrast.Frontend.AST
 
 type OperandKind =
+    | UnitConst
     | IntConst of int64
     | BoolConst of bool
-    | Symbol of string
     | TempVar of string
-    override x.ToString() =
-        match x with
-        | IntConst num -> num.ToString()
-        | BoolConst b -> b.ToString()
-        | Symbol name -> name
-        | TempVar name -> name
+    // | Label of string
 
-type Operand =
-    { _opnd: OperandKind; Ty: Type }
-    override this.ToString() = this._opnd.ToString()
+type Operand = { _opnd: OperandKind; Ty: Type }
 
 type InstructionKind =
-    | BinInstr of {| Op: BinOpKind; Dst: Operand; Fst: Operand; Snd: Operand |}
+    | Bin of {| Op: BinOpKind; Fst: Operand; Snd: Operand; Dst: Operand |}
+    | Load of {| Src: Operand; Dst: Operand |}
     | Store of {| Dst: Operand; Src: Operand |}
-    | Load of {| Dst: Operand; Src: Operand |}
-    | Return of Option<Operand>
-    Alloc <-------------
-    override x.ToString() =
-        match x with
-        | BinInstr bin -> $"{bin.Dst} = {bin.Fst} {binOpStr bin.Op} {bin.Dst}"
-        | Store s -> $"{s.Dst} = {s.Src}"
-        | Load s -> $"{s.Dst} = {s.Src}"
-        | Return retValOpt ->
-            match retValOpt with
-            | Some retVal -> $"ret {retVal}"
-            | None -> "ret"
+    | Alloc of {| Ty: Type; Dst: Operand |}
+    | Call of {| Name: string; Arguments: Operand list; Dst: Operand |}
+    | Return of Operand
 
-[<StructuredFormatDisplay("{_instr}")>]
-type Instruction = {
-    _instr: InstructionKind
-    Ty: Type
-}
+type Instruction = { _instr: InstructionKind; Ty: Type  }
 
-// Maybe call it basic block instead?
-type Block = {
+type BasicBlock = {
     Name: string
-    Instructions: Instruction list
+    mutable Instructions: Instruction list
+    mutable Predecessors: BasicBlock list
+    mutable Successors: BasicBlock list
+    // PhiNodes: PhiNode list
 }
 
-type Parameter = (string * Type)
+type Parameter = string * Type
 
 type Function = {
     Name: string
-    ReturnType: Type
     Parameters: Parameter list
-    mutable Blocks: Block list
+    ReturnType: Type
+    mutable Blocks: BasicBlock list
+}
+
+type Program = {
+    Entrypoint: string
+    Functions: Function list
 }

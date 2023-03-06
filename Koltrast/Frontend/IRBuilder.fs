@@ -4,91 +4,90 @@ open System.Collections.Generic
 open Koltrast.Frontend.AST
 open Koltrast.Frontend.IR
 
+
+
+
 type Scope = {
-    Parent: Scope option
     Symbols: Dictionary<string, Operand>
-    mutable TempVarCount: int
+    mutable VarCount: int
 }
 
 type IRBuilder() =
-    let mutable allFunctions: Function list = []
-    let mutable entrypointName: Option<string> = None
-    let mutable currentFn : Function option = None
-    let mutable fnStack : Function list = []
-    let mutable scope : Scope = { Parent = None; Symbols = Dictionary(); TempVarCount=0 }
+    let mutable sealedFunctions: Function list = []
     
-    member this.SetEntrypoint(name: string): unit = entrypointName <- Some name
+    let blockStack: Stack<BasicBlock> = Stack()
+    let scopeStack: Stack<Scope> = Stack()
+    let fnStack: Stack<Function> = Stack()
+    member this.currentBlock with get() = blockStack.Peek()
+    member this.currentScope with get() = scopeStack.Peek()
+    member this.currentFn with get() = fnStack.Peek()
     
-    member this.GenTempVar(): OperandKind =
-        let tempVar = TempVar ("%" + scope.TempVarCount.ToString())
-        scope.TempVarCount <- scope.TempVarCount + 1
+    
+    member this.GenTempVar(ty: Type): Operand =
+        let tempVar = { _opnd=TempVar("%" + this.currentScope.VarCount.ToString()); Ty=ty }
+        this.currentScope.VarCount <- this.currentScope.VarCount + 1
         tempVar
     
-    member this.addVar (name: string) (opnd: Operand): unit =
-        scope.Symbols[name] <- opnd
+    member this.AddVar(sourceName: string, ty: Type): Operand =
+        let opnd = this.GenTempVar(ty)
+        this.currentScope.Symbols.Add(sourceName, opnd)
+        opnd
     
-    member this.LookupVar (name: string): Operand =
-        let rec lookup (scope: Scope option) (name: string) =
-            match scope with
-            | None -> None
-            | Some(s) ->
-                if s.Symbols.ContainsKey(name) then
-                    Some(s.Symbols.[name])
-                else
-                    lookup s.Parent name
-        
-        match lookup (Some(scope)) name with
-        | None -> failwith $"undeclared variable {name}"
-        | Some opnd -> opnd
-    
-    member this.BeginFunction (name: string) (returnType: Type) (parameters: Parameter list): unit =
-        let newFn = { Name=name; ReturnType=returnType; Parameters=parameters; Blocks=[] }
-        currentFn <- Some newFn
-        fnStack <- currentFn.Value :: fnStack
-        let newBlock = { Name="entry"; Instructions=[] }
-        newFn.Blocks <- newBlock :: newFn.Blocks
-        scope <- { Parent = Some(scope); Symbols = Dictionary(); TempVarCount=0 }
-        List.iter (fun (paramName, paramTy) -> this.addVar paramName { _opnd=Symbol paramName; Ty=paramTy } ) parameters
+    member this.UpdateVar(sourceName: string, opnd: Operand): unit =
+        this.currentScope.Symbols.Add(sourceName, opnd)
 
-    member this.EndFunction(): unit =
-        allFunctions <- allFunctions @ [currentFn.Value]
-        // yeah... I'm sorry for this lol.
-        match fnStack with
-        | _ :: fn :: tl ->
-            currentFn <- Some fn
-            fnStack <- tl
-        | fn :: tl ->
-            currentFn <- Some fn
-            fnStack <- tl
-        | _ -> ()
-            
-        scope <- scope.Parent.Value
-
-    member this.BeginBlock (name: string): unit =
-        match currentFn with
-        | None -> failwith "No current function defined"
-        | Some fn ->
-            let newBlock = { Name = name; Instructions = [] }
-            fn.Blocks <- newBlock :: fn.Blocks
-            scope <- { Parent = Some(scope); Symbols = Dictionary(); TempVarCount=0 }
-
-    member this.EndBlock(): unit =
-        match currentFn with
-        | None -> failwith "No current function defined"
-        | Some fn ->
-            match fn.Blocks with
-            | [] -> failwith "No blocks in current function"
-            | hd :: tl -> fn.Blocks <- tl @ [hd]
-            scope <- scope.Parent.Value
-
-    member this.Emit(instr: Instruction) =
-        match currentFn with
-        | None -> failwith "No current function defined"
-        | Some fn ->
-            match fn.Blocks with
-            | [] -> failwith "No blocks in current function"
+    member this.getVar(sourceName: string): Operand =
+        // I'm sorry for this code :(
+        let rec lookup (scopes: Scope list) =
+            match scopes with
+            | [] -> failwith "couldn't find var, shouldn't happen"
             | hd :: tl ->
-                let newhd = { hd with Instructions = hd.Instructions @ [instr] }
-                fn.Blocks <- newhd :: tl
+                let opnd = ref { _opnd=IntConst 1; Ty=I8 }
+                if hd.Symbols.TryGetValue(sourceName, opnd) then
+                    opnd.Value
+                else
+                    lookup tl
 
-    member this.GetIR() = entrypointName.Value, allFunctions
+        lookup (scopeStack.ToArray() |> List.ofArray)
+
+    member this.EnterScope(): unit =
+        scopeStack.Push({ Symbols=Dictionary(); VarCount=0 })
+        
+    member this.LeaveScope(): unit =
+        scopeStack.Pop() |> ignore
+    
+    member this.EnterBlock(): unit =
+        blockStack.Push({
+            Name=($"bb{blockStack.ToArray().Length}")
+            Instructions=[]
+            Predecessors=[]
+            Successors=[]
+        })
+    
+    member this.LeaveBlock(): unit =
+        this.currentFn.Blocks <- this.currentFn.Blocks @ [blockStack.Pop()]
+    
+    member this.Emit(instr: Instruction): unit =
+        this.currentBlock.Instructions <- this.currentBlock.Instructions @ [instr]
+
+    member this.EnterFunction(fn: Function): unit =
+        fnStack.Push(fn)
+        this.EnterScope()
+        
+        fn.Parameters
+        |> List.map this.AddVar
+        |> ignore
+        
+        blockStack.Push({
+            Name=($"entry")
+            Instructions=[]
+            Predecessors=[]
+            Successors=[]
+        })
+    
+    member this.LeaveFunction(): unit =
+        this.LeaveBlock()
+        this.LeaveScope()
+        sealedFunctions <- sealedFunctions @ [fnStack.Pop()]
+
+    member this.GetIR() = sealedFunctions
