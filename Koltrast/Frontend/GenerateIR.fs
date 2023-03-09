@@ -32,25 +32,22 @@ let rec generate (builder: IRBuilder) (expr: TypedExpr): Option<Operand> =
         builder.Emit { _instr=Load {| Src=srcOpnd; Dst=dstOpnd |}; Ty=exprTy }
         Some dstOpnd
     | Assign ass ->
-        builder.GetVar(ass.Name) |> ignore
         let srcOpnd = gen ass.AssignExpr |> expectOpnd
-        let dstOpnd = builder.GenTempVar(exprTy)
+        let dstOpnd = builder.UpdateVar(ass.Name)
         builder.Emit { _instr=Store {| Dst=dstOpnd; Src=srcOpnd |}; Ty=exprTy }
         Some dstOpnd
     | Var v ->
         match v.InitExprOpt with
         | Some initExpr ->
             let initTy = initExpr.Metadata
-            let dstOpnd = builder.GenTempVar(initTy)
+            let dstOpnd = builder.AddVar(v.Name, initTy)
             let initOpnd = gen initExpr |> expectOpnd
             builder.Emit { _instr=Alloc {| Dst=dstOpnd; Ty=initTy|}; Ty=initTy }
             builder.Emit { _instr=Store {| Dst=dstOpnd; Src=initOpnd |}; Ty=initTy }
-            builder.AddVar(v.Name, initTy)
         | None ->
             let ty = v.TyAnnot.Value
-            let dstOpnd = builder.GenTempVar(ty)
+            let dstOpnd = builder.AddVar(v.Name, ty)
             builder.Emit { _instr=Alloc {| Dst=dstOpnd; Ty=ty|}; Ty=ty }
-            builder.AddVar(v.Name, ty)
         |> ignore
         
         Some UNIT_OPND
@@ -109,7 +106,7 @@ let rec generate (builder: IRBuilder) (expr: TypedExpr): Option<Operand> =
         None
     
     | _ -> failwith $"unimplemented IR: ({expr._expr})"
-TEMPVAR problem. Scope / Block / ???
+
 let generateIR exprs =
     let builder = IRBuilder()
     // global scope, I think?

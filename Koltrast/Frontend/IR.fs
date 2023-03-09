@@ -46,7 +46,6 @@ type BasicBlock = {
     mutable Predecessors: BasicBlock list
     mutable Successors: BasicBlock list
     // PhiNodes: PhiNode list
-    mutable VarCount: int
 }
 
 type Parameter = string * Type

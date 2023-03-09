@@ -12,7 +12,7 @@ open Koltrast.Frontend.GenerateIR
 open Koltrast.ResultBuilder
 open Microsoft.FSharp.Core
 
-let path = @"C:\Users\vince\RiderProjects\Koltrast\Koltrast\input.txt"
+let path = @"C:\Users\Vincent Gustafsson\RiderProjects\programmering-kurs\Koltrast\Koltrast\input.txt"
 let src = System.IO.File.ReadAllLines(path) |> List.ofSeq
 let diagnostics = DiagnosticBag(path)
 

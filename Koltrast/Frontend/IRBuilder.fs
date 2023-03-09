@@ -8,7 +8,7 @@ open Koltrast.Frontend.IR
 
 
 type Scope = {
-    Symbols: Dictionary<string, Operand>
+    mutable Symbols: Map<string, int * Type>
 }
 
 type IRBuilder() =
@@ -18,54 +18,61 @@ type IRBuilder() =
     let blockStack: Stack<BasicBlock> = Stack()
     let scopeStack: Stack<Scope> = Stack()
     let fnStack: Stack<Function> = Stack()
+    let mutable varCountStack: Stack<int> =
+        let s = Stack()
+        s.Push(0)
+        s
+
     member this.currentBlock with get() = blockStack.Peek()
     member this.currentScope with get() = scopeStack.Peek()
     member this.currentFn with get() = fnStack.Peek()
     
     
     member this.GenTempVar(ty: Type): Operand =
-        let tempVar = { _opnd=TempVar("%" + this.currentBlock.VarCount.ToString()); Ty=ty }
-        this.currentBlock.VarCount <- this.currentBlock.VarCount + 1
+        let varCount = varCountStack.Pop()
+        let tempVar = { _opnd=TempVar("%" + varCount.ToString()); Ty=ty }
+        varCountStack.Push(varCount + 1)
         tempVar
     
     member this.AddVar(sourceName: string, ty: Type): Operand =
-        let opnd = this.GenTempVar(ty)
-        this.currentScope.Symbols.Add(sourceName, opnd)
+        let opnd = { _opnd=TempVar($"{sourceName}_{0}"); Ty=ty }
+        this.currentScope.Symbols <- this.currentScope.Symbols.Add(sourceName, (0, ty))
         opnd
     
-    member this.UpdateVar(sourceName: string, opnd: Operand): unit =
-        this.currentScope.Symbols.Add(sourceName, opnd)
+    member this.UpdateVar(sourceName: string): Operand =
+        let ver, ty = Map.find sourceName this.currentScope.Symbols
+        this.currentScope.Symbols <- this.currentScope.Symbols.Add(sourceName, (ver+1, ty))
+        { _opnd=TempVar($"{sourceName}{ver+1}"); Ty=ty }
 
     member this.GetVar(sourceName: string): Operand =
         // I'm sorry for this code :(
         let rec lookup (scopes: Scope list) =
             match scopes with
-            | [] -> failwith "couldn't find var, shouldn't happen"
+            | [] -> failwith $"couldn't find var {sourceName}, shouldn't happen"
             | hd :: tl ->
-                let opnd = ref { _opnd=IntConst 1; Ty=I8 }
-                if hd.Symbols.TryGetValue(sourceName, opnd) then
-                    opnd.Value
-                else
-                    lookup tl
+                match Map.tryFind sourceName hd.Symbols with
+                | Some(ver, ty) -> { _opnd=TempVar($"{sourceName}{ver}"); Ty=ty }
+                | None -> lookup tl
 
         lookup (scopeStack.ToArray() |> List.ofArray)
 
     member this.EnterScope(): unit =
-        scopeStack.Push({ Symbols=Dictionary() })
+        scopeStack.Push({ Symbols=Map.empty })
         
     member this.LeaveScope(): unit =
         scopeStack.Pop() |> ignore
     
     member this.EnterBlock(): unit =
+        varCountStack.Push(0)
         blockStack.Push({
             Name=($"bb{blockStack.ToArray().Length}")
             Instructions=[]
             Predecessors=[]
             Successors=[]
-            VarCount=0
         })
     
     member this.LeaveBlock(): unit =
+        varCountStack.Pop()
         this.currentFn.Blocks <- this.currentFn.Blocks @ [blockStack.Pop()]
     
     member this.Emit(instr: Instruction): unit =
@@ -74,6 +81,8 @@ type IRBuilder() =
     member this.EnterFunction(fn: Function): unit =
         fnStack.Push(fn)
         this.EnterScope()
+        
+        varCountStack.Push(0)
         
         fn.Parameters
         |> List.map this.AddVar
@@ -84,7 +93,6 @@ type IRBuilder() =
             Instructions=[]
             Predecessors=[]
             Successors=[]
-            VarCount=0
         })
     
     member this.LeaveFunction(): unit =
