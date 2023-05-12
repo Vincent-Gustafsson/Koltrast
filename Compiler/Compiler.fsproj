@@ -13,4 +13,10 @@
       <PackageReference Include="FParsec" Version="2.0.0-beta2" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Compile Include="Parse\Parser.fs" />
+      <Compile Include="AST\Types.fs" />
+      <Compile Include="AST\ParsedAST.fs" />
+    </ItemGroup>
+
 </Project>
