@@ -14,9 +14,9 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Compile Include="Parse\Parser.fs" />
       <Compile Include="AST\Types.fs" />
       <Compile Include="AST\ParsedAST.fs" />
+      <Compile Include="Parse\Parser.fs" />
     </ItemGroup>
 
 </Project>
