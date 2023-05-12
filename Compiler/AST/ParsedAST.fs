@@ -27,9 +27,9 @@ type ExprKind =
     | IfExpr of {| Cond: Expr; Then: Expr; Else: Expr |}
     | FuncAppl of {| Name: Identifier; Arguments: Expr |}
     | While of {| Cond: Expr; Body: Expr |}
-    | LetVar of {| Name: Identifier; InitExpr: Expr |}
-    | ConstVar of {| Name: Identifier; InitExpr: Expr |}
-    | Assign of {| Name: Identifier; AssExpr: Expr |}
+    | LetVar of {| Name: Expr; InitExpr: Expr |}
+    | ConstVar of {| Name: Expr; InitExpr: Expr |}
+    | Assign of {| Name: Expr; AssExpr: Expr |}
 
 and Expr = {
     _expr: ExprKind
