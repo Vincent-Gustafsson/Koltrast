@@ -1,6 +1,12 @@
-module Compiler.AST.AST
+module Compiler.AST.ParsedAST
 
 open Types
+
+type Location = {
+    StreamName: string
+    Start: {| Index: int; Line: int; Col: int |}
+    End: {| Index: int; Line: int; Col: int  |}
+}
 
 type Identifier = string
 
@@ -10,8 +16,11 @@ type BinOpKind =
     | Mul
     | Div
 
-type Expr =
+type ExprKind =
+    | Error of string
+    
     | Block of Expr list
+    | Ident of Identifier
     | IntegerLiteral of int
     | BooleanLiteral of bool
     | BinOp of {| Op: BinOpKind; Left: Expr; Right: Expr |}
@@ -22,6 +31,10 @@ type Expr =
     | ConstVar of {| Name: Identifier; InitExpr: Expr |}
     | Assign of {| Name: Identifier; AssExpr: Expr |}
 
+and Expr = {
+    _expr: ExprKind
+    Loc: Location
+}
 type FnParam = {| Name: Identifier; Ty: Type |}
 
 type Item =
