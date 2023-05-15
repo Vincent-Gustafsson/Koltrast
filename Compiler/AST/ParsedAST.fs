@@ -37,7 +37,7 @@ and Expr = {
     TypeAnnotation: Type option
     Loc: Location
 }
-type FnParam = {| Name: Identifier; Ty: Type |}
+type FnParam = {| Name: Expr; Ty: Type |}
 
 type ItemKind =
     | Function of {| Name: Expr; Params: FnParam list; ReturnType: Type; Body: Expr |}
