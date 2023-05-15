@@ -26,7 +26,7 @@ type ExprKind =
     | BooleanLiteral of bool
     | BinOp of {| Op: BinOpKind; Left: Expr; Right: Expr |}
     | IfExpr of {| Cond: Expr; Then: Expr; Else: Expr |}
-    | FuncAppl of {| Name: Identifier; Arguments: Expr |}
+    | FuncAppl of {| Name: Expr; Arguments: Expr |}
     | While of {| Cond: Expr; Body: Expr |}
     | LetVar of {| Name: Expr; InitExpr: Expr |}
     | ConstVar of {| Name: Expr; InitExpr: Expr |}
@@ -40,7 +40,7 @@ and Expr = {
 type FnParam = {| Name: Identifier; Ty: Type |}
 
 type Item =
-    | Function of {| Name: Identifier; Params: FnParam list; |}
+    | Function of {| Name: Expr; Params: FnParam list; |}
 
 type CompilationUnit = {
     Items: Item
