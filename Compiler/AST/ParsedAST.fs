@@ -1,5 +1,6 @@
 module Compiler.AST.ParsedAST
 
+open Compiler.AST.Types
 open Types
 
 type Location = {
@@ -33,6 +34,7 @@ type ExprKind =
 
 and Expr = {
     _expr: ExprKind
+    TypeAnnotation: Type option
     Loc: Location
 }
 type FnParam = {| Name: Identifier; Ty: Type |}
