@@ -26,7 +26,7 @@ type ExprKind =
     | BooleanLiteral of bool
     | BinOp of {| Op: BinOpKind; Left: Expr; Right: Expr |}
     | IfExpr of {| Cond: Expr; Then: Expr; Else: Expr |}
-    | FuncAppl of {| Name: Expr; Arguments: Expr |}
+    | FuncAppl of {| Name: Expr; Arguments: Expr list |}
     | While of {| Cond: Expr; Body: Expr |}
     | LetVar of {| Name: Expr; InitExpr: Expr |}
     | ConstVar of {| Name: Expr; InitExpr: Expr |}
