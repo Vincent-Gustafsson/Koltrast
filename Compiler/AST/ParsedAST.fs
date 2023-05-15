@@ -48,5 +48,5 @@ type Item = {
 }
 
 type CompilationUnit = {
-    Items: Item
+    Items: Item list
 }
