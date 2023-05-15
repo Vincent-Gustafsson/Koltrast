@@ -39,8 +39,13 @@ and Expr = {
 }
 type FnParam = {| Name: Identifier; Ty: Type |}
 
-type Item =
+type ItemKind =
     | Function of {| Name: Expr; Params: FnParam list; |}
+
+type Item = {
+    _item: ItemKind
+    Loc: Location
+}
 
 type CompilationUnit = {
     Items: Item
