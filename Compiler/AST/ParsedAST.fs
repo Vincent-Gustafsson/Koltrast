@@ -40,7 +40,7 @@ and Expr = {
 type FnParam = {| Name: Identifier; Ty: Type |}
 
 type ItemKind =
-    | Function of {| Name: Expr; Params: FnParam list; |}
+    | Function of {| Name: Expr; Params: FnParam list; ReturnType: Type; Body: Expr |}
 
 type Item = {
     _item: ItemKind
