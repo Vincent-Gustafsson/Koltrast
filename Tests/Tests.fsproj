@@ -9,6 +9,7 @@
 
     <ItemGroup>
         <Compile Include="Program.fs" />
+        <Compile Include="ParseTests\ParserTests.fs" />
     </ItemGroup>
 
     <ItemGroup>
@@ -17,6 +18,10 @@
         <PackageReference Include="NUnit3TestAdapter" Version="4.2.1" />
         <PackageReference Include="NUnit.Analyzers" Version="3.3.0" />
         <PackageReference Include="coverlet.collector" Version="3.1.2" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Compiler\Compiler.fsproj" />
     </ItemGroup>
 
 </Project>
