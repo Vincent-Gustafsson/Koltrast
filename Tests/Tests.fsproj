@@ -8,8 +8,10 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="Program.fs" />
+        <Compile Include="ParseTests\ParsedASTConstruction.fs" />
+        <Compile Include="ParseTests\ParsedASTEquality.fs" />
         <Compile Include="ParseTests\ParserTests.fs" />
+        <Compile Include="Program.fs" />
     </ItemGroup>
 
     <ItemGroup>
