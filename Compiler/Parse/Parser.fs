@@ -259,3 +259,8 @@ opp.TermParser <- choice [
 ]
 
 let pProgram = ws >>. many pFunc .>> eof |>> (fun items -> { Items=items })
+
+let runProgramParserOnStr streamName input =
+    match runParserOnString pProgram () streamName input with
+    | Success(ast, _, _) -> Result.Ok ast
+    | Failure(errStr, _, _) -> Result.Error errStr
