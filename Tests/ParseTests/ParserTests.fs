@@ -9,6 +9,9 @@ open ParsedASTEquality
 
 [<TestFixture>]
 type ``Parsing Tests`` () =
+    let progComparer = ProgramEqualityComparer()
+    let exprComparer = ExprEqualityComparer()
+    
     let runParserAndFailOnError (parser: Parser<'a,unit>) input =
         match runParserOnString parser () "testing" input with
         | Success(ast,_,_) -> ast
@@ -16,18 +19,62 @@ type ``Parsing Tests`` () =
     
     [<Test>]
     member this.``parses an empty program``() =
-        let comparer = ProgramEqualityComparer()
-        
         let input = ""
         let actual = runParserAndFailOnError pProgram input
         let expect = prog []
-        Assert.That(actual, Is.EqualTo(expect).Using(comparer))
+        Assert.That(actual, Is.EqualTo(expect).Using(progComparer))
 
     [<Test>]
     member this.``parses a program with one function``() =
-        let comparer = ProgramEqualityComparer()
-        
         let input = "fn main() -> unit {}"
         let actual = runParserAndFailOnError pProgram input
         let expect = prog [(fn "main" [] Types.Unit (block []))]
-        Assert.That(actual, Is.EqualTo(expect).Using(comparer))
+        Assert.That(actual, Is.EqualTo(expect).Using(progComparer))
+    
+    [<Test>]
+    member this.``parses an integer``() =
+        let inputs = [ "1"; "10"; "-5"; "-69"; "0xCAFEBABE"; "0b1001"; "0o62" ]
+        let expect = [ num 1; num 10; num -5; num -69; num 0xCAFEBABE; num 0b1001; num 0o62 ]
+        
+        (inputs, expect)
+        ||> List.iter2 (fun input expect ->
+            let actual = runParserAndFailOnError pInt input
+            Assert.That(actual, Is.EqualTo(expect).Using(exprComparer)))
+
+    [<Test>]
+    member this.``parses a boolean``() =
+        let inputs = [ "true"; "false" ]
+        let expect = [ bool true; bool false ]
+        
+        (inputs, expect)
+        ||> List.iter2 (fun input expect ->
+            let actual = runParserAndFailOnError pBool input
+            Assert.That(actual, Is.EqualTo(expect).Using(exprComparer)))
+
+    [<Test>]
+    member this.``parses a valid identifier``() =
+        let inputs = [ "foo"; "_bar"; "Weird_mix_Case_tesT_" ]
+        let expect = [ id "foo"; id "_bar"; id "Weird_mix_Case_tesT_" ]
+        
+        (inputs, expect)
+        ||> List.iter2 (fun input expect ->
+            let actual = runParserAndFailOnError pIdent input
+            Assert.That(actual, Is.EqualTo(expect).Using(exprComparer)))
+
+    [<Test>]
+    member this.``parser fails if an identifier is a keyword``() =
+        let inputs = [ "let"; "const"; "fn"; "while"; "if"; "then"; "else" ]
+        let expectedErrors = List.map (fun kw -> $"'{kw}' is a reserved keyword") inputs
+        
+        (inputs, expectedErrors)
+        ||> List.iter2 (fun input expect ->
+            match runParserOnString pIdent () "testing" input with
+            | Success _ -> Assert.Fail("parser unexpectedly succeeded")
+            | Failure(_,err,_) ->
+                let errMsg =
+                    match err.Messages.Head with
+                    | Message msg -> msg
+                    | _ -> Assert.Fail("unexpected `ErrorMessageType`"); exit 1
+                Assert.AreEqual($"'{input}' is a reserved keyword", errMsg))
+        
+        
