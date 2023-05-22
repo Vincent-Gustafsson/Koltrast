@@ -76,5 +76,17 @@ type ``Parsing Tests`` () =
                     | Message msg -> msg
                     | _ -> Assert.Fail("unexpected `ErrorMessageType`"); exit 1
                 Assert.AreEqual($"'{input}' is a reserved keyword", errMsg))
+
+    [<Test>]
+    member this.``parses a let and const declaration without type annotation``() =
+        let letDeclInput = "let foo = 42"
+        let letDeclExpectation = let_ "foo" (num 42)
         
+        let actual = runParserAndFailOnError pVar letDeclInput
+        Assert.That(actual, Is.EqualTo(letDeclExpectation).Using(exprComparer))
         
+        let constDeclInput = "const bar = baz"
+        let constDeclExpectation = const_ "bar" (id "baz")
+        
+        let actual = runParserAndFailOnError pVar constDeclInput
+        Assert.That(actual, Is.EqualTo(constDeclExpectation).Using(exprComparer))
