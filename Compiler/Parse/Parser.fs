@@ -9,7 +9,7 @@ let isValidIdentChar c =
     |> Seq.exists (fun ch -> ch = c)
 
 let isKeyword str =
-    [| "let"; "const"; "fn"; "while"; "if"; "then"; "else" |]
+    [| "true"; "false"; "let"; "const"; "fn"; "while"; "if"; "then"; "else" |]
     |> Seq.exists (fun kw -> str = kw)
 
 let ws = spaces
@@ -47,6 +47,8 @@ let symbol sym =
     .>> ws)
 
 type KeywordKind =
+    | True
+    | False
     | Let
     | Const
     | Fn
@@ -58,6 +60,8 @@ type KeywordKind =
 // Parse a symbol and then strip trailing ws
 let keyword kw =
     (match kw with
+    | True -> skipString "true"
+    | False -> skipString "false"
     | Let -> skipString "let"
     | Const -> skipString "const"
     | Fn -> skipString "fn"
@@ -230,7 +234,9 @@ let pWhile =
     |>> (fun (loc, (cond, block)) -> mkExpr loc (ExprKind.While({| Cond=cond; Body=block |})))
 
 let pIf = parse {
+    do! ws
     let! startPos = getPosition
+    
     do! keyword If
     let! cond = expr
 
@@ -247,15 +253,15 @@ let pIf = parse {
 }
 
 opp.TermParser <- choice [
-    pInt
-    pBool
+    attempt pIdentWithOptArgs // identifier or function application
+    attempt pInt
+    attempt pBool
     betweenParens expr   
     
+    attempt pIf
     pBlock
     pWhile
-    pIf
     pVar
-    pIdentWithOptArgs // identifier or function application
 ]
 
 let pProgram = ws >>. many pFunc .>> eof |>> (fun items -> { Items=items })
