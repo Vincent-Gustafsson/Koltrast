@@ -1,6 +1,7 @@
 module Tests.ParseTests.ParserTests
 
 open Compiler.AST
+open Compiler.AST.ParsedAST
 open FParsec
 open NUnit.Framework
 open Compiler.Parse.Parser
@@ -63,7 +64,7 @@ type ``Parsing Tests`` () =
 
     [<Test>]
     member this.``parser fails if an identifier is a keyword``() =
-        let inputs = [ "let"; "const"; "fn"; "while"; "if"; "then"; "else" ]
+        let inputs = [ "true"; "false"; "let"; "const"; "fn"; "while"; "if"; "then"; "else" ]
         let expectedErrors = List.map (fun kw -> $"'{kw}' is a reserved keyword") inputs
         
         (inputs, expectedErrors)
@@ -90,3 +91,26 @@ type ``Parsing Tests`` () =
         
         let actual = runParserAndFailOnError pVar constDeclInput
         Assert.That(actual, Is.EqualTo(constDeclExpectation).Using(exprComparer))
+
+    [<Test>]
+    member this.``parses var. declarations with multiple different kinds of expressions``() =
+        let inputs = [
+            "let foo = 42"
+            "let bar = true"
+            "const baz = foobar"
+            "const foobaz = if true then 42 else 0xBEEF"
+            "let barbaz = { let barfoo = 1 barfoo + 1 }"
+        ]
+        let expect = [
+            let_ "foo" (num 42)
+            let_ "bar" (bool true)
+            const_ "baz" (id "foobar")
+            const_ "foobaz" (ifelse (bool true) (num 42) (num 0xBEEF))
+            let_ "barbaz" (block [let_ "barfoo" (num 1); bin Add (id "barfoo") (num 1)])
+        ]
+        
+        (inputs, expect)
+        ||> List.iter2 (fun input expect ->
+            let actual = runParserAndFailOnError pVar input
+            Assert.That(actual, Is.EqualTo(expect).Using(exprComparer)))    
+    
