@@ -64,6 +64,12 @@ type ProgramEqualityComparer() =
             eqProg p1 p2
         member this.GetHashCode(_) = raise(NotImplementedException())
 
+type ItemEqualityComparer() =
+    interface IEqualityComparer<Item> with
+        member this.Equals(item1, item2) =
+            eqItem item1 item2
+        member this.GetHashCode(_) = raise(NotImplementedException())
+
 type ExprEqualityComparer() =
     interface IEqualityComparer<Expr> with
         member this.Equals(expr1, expr2) =
