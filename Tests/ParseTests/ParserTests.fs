@@ -55,6 +55,14 @@ type ``Parsing Tests`` () =
             Assert.That(actual, Is.EqualTo(expect).Using(exprComparer)))
 
     [<Test>]
+    member this.``parses a function application / call``() =
+        let input = """ add(7, 42) """
+        let expect = appl "add" [num 7; num 42]
+        
+        let actual = runParserAndFailOnError pIdentWithOptArgs input
+        Assert.That(actual, Is.EqualTo(expect).Using(exprComparer))
+    
+    [<Test>]
     member this.``parses a valid identifier``() =
         let inputs = [ "foo"; "_bar"; "Weird_mix_Case_tesT_" ]
         let expect = [ id "foo"; id "_bar"; id "Weird_mix_Case_tesT_" ]
