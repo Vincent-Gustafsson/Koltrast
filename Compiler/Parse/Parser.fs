@@ -195,6 +195,8 @@ let pIdentWithOptArgs =
             | None -> id)
 
 let pFunc = parse {
+    do! ws
+    
     let! funcStartPos = getPosition
     do! keyword Fn
 
