@@ -2,6 +2,7 @@ module Tests.ParseTests.ParserTests
 
 open Compiler.AST
 open Compiler.AST.ParsedAST
+open Compiler.AST.Types
 open FParsec
 open NUnit.Framework
 open Compiler.Parse.Parser
@@ -11,6 +12,7 @@ open ParsedASTEquality
 [<TestFixture>]
 type ``Parsing Tests`` () =
     let progComparer = ProgramEqualityComparer()
+    let itemComparer = ItemEqualityComparer()
     let exprComparer = ExprEqualityComparer()
     
     let runParserAndFailOnError (parser: Parser<'a,unit>) input =
@@ -113,4 +115,16 @@ type ``Parsing Tests`` () =
         ||> List.iter2 (fun input expect ->
             let actual = runParserAndFailOnError pVar input
             Assert.That(actual, Is.EqualTo(expect).Using(exprComparer)))    
-    
+
+    [<Test>]
+    member this.``parses a function with multiple arguments``() =
+        let input = """
+            fn add(a: i32, b: i32) -> i32 {
+                a + b
+            }
+        """
+        
+        let expect = fn "add" [("a", I32); ("b", I32)] I32 (block [bin Add (id "a") (id "b")])
+        
+        let actual = runParserAndFailOnError pFunc input
+        Assert.That(actual, Is.EqualTo(expect).Using(itemComparer))
