@@ -63,6 +63,14 @@ type ``Parsing Tests`` () =
         Assert.That(actual, Is.EqualTo(expect).Using(exprComparer))
     
     [<Test>]
+    member this.``parser generates an error node if the lhs of an assignment isn't an ident.``() =
+        let input = """ true = 22 """
+        let expect = err "l-value of assign must be an identifier"
+        
+        let actual = runParserAndFailOnError expr input
+        Assert.That(actual, Is.EqualTo(expect).Using(exprComparer))
+    
+    [<Test>]
     member this.``parses a valid identifier``() =
         let inputs = [ "foo"; "_bar"; "Weird_mix_Case_tesT_" ]
         let expect = [ id "foo"; id "_bar"; id "Weird_mix_Case_tesT_" ]
