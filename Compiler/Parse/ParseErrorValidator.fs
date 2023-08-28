@@ -17,13 +17,25 @@ let rec checkExprForErrorNode expr: string list =
     | While w ->
         [w.Cond; w.Body]
         |> List.collect checkExprForErrorNode
-    |
+    | Block exprs ->
+        exprs
+        |> List.collect checkExprForErrorNode
+    | LetVar v
+    | ConstVar v ->
+        [v.Name; v.InitExpr]
+        |> List.collect checkExprForErrorNode
+    | Assign ass ->
+        [ass.Name; ass.AssExpr]
+        |> List.collect checkExprForErrorNode
+    | _ -> []
 
-let checkTreeForErrorNodes compUnit =
-    compUnit
-    |> List.fold (fun item ->
-        match item with
-        | ItemKind.Function fn ->
-            match checkExprForErrorNode with
-            | Some e ->
-            | None -> ) List.empty
+let checkTreeForErrorNodes (compUnit: CompilationUnit) =
+    (List.empty, compUnit.Items)
+    ||> List.fold (fun acc item ->
+        match item._item with
+        | ItemKind.Function fn -> acc @ (checkExprForErrorNode fn.Body)
+        | _ -> acc)
+    |> function
+        | [] -> Result.Ok()
+        | errs -> Result.Error errs
+    

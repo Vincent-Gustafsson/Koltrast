@@ -2,13 +2,23 @@
 
 open Compiler.Parse
 open FParsec
-open Parser
+open Microsoft.FSharp.Core
 
-let prog = """"""
+let prog = """
+fn foo() -> unit {
+    let a = 0
+}
+"""
 
 [<EntryPoint>]
 let main args =
-    match runParserOnString pProgram () "internal" prog with
-    | Success(res, _, _) -> printfn "%A" res
-    | Failure(s, _, _) -> printfn $"{s}"
+    match runParserOnString Parser.pProgram () "internal" prog with
+    | Success(res, _, _) ->
+        printfn "%A\n ------------------" res
+        match ParseErrorValidator.checkTreeForErrorNodes res with
+        | Ok resultValue -> printfn "all good :)"
+        | Error errorValue ->
+            printfn $"Number of errors: {errorValue.Length}"
+            errorValue |> List.iter (printfn "%s")
+    | ParserResult.Failure(s, _, _) -> printfn $"{s}"
     0
