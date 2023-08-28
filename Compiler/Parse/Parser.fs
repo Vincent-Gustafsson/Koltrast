@@ -138,8 +138,6 @@ addInfixOperator "=" 3 Associativity.Right (fun loc id assExpr ->
     | Ident _ -> mkExpr loc (Assign({| Name=id; AssExpr=assExpr |}))
     | _ -> mkExpr loc (ExprKind.Error "l-value of assign must be an identifier"))
 
-
-
 let pBlock =
     getLoc (
         between
