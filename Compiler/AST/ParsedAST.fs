@@ -17,6 +17,13 @@ type BinOpKind =
     | Mul
     | Div
 
+let binOpStr op =
+    match op with
+    | Add -> "+"
+    | Sub -> "-"
+    | Mul -> "*"
+    | Div -> "/"
+
 type ExprKind =
     | Error of string
     

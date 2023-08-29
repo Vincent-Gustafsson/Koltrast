@@ -12,8 +12,12 @@
     <ItemGroup>
       <Compile Include="AST\Types.fs" />
       <Compile Include="AST\ParsedAST.fs" />
+      <Compile Include="AST\TypedAST.fs" />
       <Compile Include="Parse\Parser.fs" />
       <Compile Include="Parse\ParseErrorValidator.fs" />
+      <Compile Include="Diagnostics.fs" />
+      <Compile Include="OptionBuilder.fs" />
+      <Compile Include="Sema\Typechecker.fs" />
       <Compile Include="Program.fs" />
     </ItemGroup>
 
