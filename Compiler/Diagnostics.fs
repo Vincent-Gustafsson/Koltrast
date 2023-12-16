@@ -41,6 +41,8 @@ type DiagnosticBag(_sourcePath) =
         End={| Index=0; Line=0; Col=0 |}
     }
     
+    member this.isEmpty() = diagnostics.IsEmpty
+    
     member this.add (d: Diagnostic) = diagnostics <- diagnostics @ [d]
     member this.genDiagnostics() =
         diagnostics |> List.map (fun d ->
