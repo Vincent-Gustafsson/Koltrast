@@ -185,17 +185,40 @@ and inferType (diagnostics: DiagnosticBag) (env: Env) (expr: Expr): TExpr option
                 reportTypeError $"expected {fnTy.Parameters.Length} arguments, got {fnAppl.Arguments.Length}." "" ; None
         | None -> reportTypeError $"the function '{fnAppl.Name}' is not defined." "" ; None
         
-    | ExprKind.While foo ->
+    | ExprKind.While whi -> opt {
+        let! tCondExpr = check whi.Cond Bool
+        let! tBodyExpr = infer whi.Body
         
+        return mkTExpr (While({| Cond=tCondExpr; Body=tBodyExpr |})) Unit}
         
-    | ExprKind.LetVar foo -> failwith "todo"
-    | ExprKind.ConstVar foo -> failwith "todo"
-    | ExprKind.Assign foo -> failwith "todo"
+    | ExprKind.LetVar v | ExprKind.ConstVar v -> opt {
+        let! tInitExpr =
+            match expr.TypeAnnotation with
+            | Some tyAnn -> check v.InitExpr tyAnn
+            | None -> infer v.InitExpr
+
+        match expr._expr with
+        | ExprKind.LetVar _ -> env.addVar(v.Name, tInitExpr.Ty, Mutable)
+        | ExprKind.ConstVar _ -> env.addVar(v.Name, tInitExpr.Ty, Mutable)
+        |> ignore
+        
+        return mkTExpr (LetVar({| Name=v.Name; InitExpr=tInitExpr |})) Unit}
+    
+    | ExprKind.Assign ass ->
+        match env.lookupVar(ass.Name) with
+        | Some(ty, mutability) ->
+            if mutability = Mutable then
+                match check ass.AssExpr ty with
+                | Some tAssExpr -> Some (mkTExpr (Assign({| Name=ass.Name; AssExpr=tAssExpr |})) Unit)
+                | None -> None
+            else
+                reportTypeError "can't reassign to constant variable" "immutable"; None
+        | None -> reportTypeError "undefined variable" "undefined"; None
 
 let typecheckItem (diagnostics: DiagnosticBag) (env: Env) item =
     match item._item with
     | Function fn ->
-        let fnTy = Type.Fn {|
+        let fnTy = {|
             Parameters=(fn.Params |> List.map (fun p -> p.Ty))
             Return=fn.ReturnType
         |}
@@ -207,7 +230,7 @@ let typecheckItem (diagnostics: DiagnosticBag) (env: Env) item =
         |> List.iter (fun p -> env.addVar(p.Name, p.Ty, Mutable))
         
         match checkType diagnostics env fn.Body fn.ReturnType with
-        | Some tExpr -> Some { _item=item._item; Ty=fnTy; Loc=item.Loc }
+        | Some tExpr -> Some { _item=item._item; Ty=Type.Fn(fnTy); Loc=item.Loc }
         | None -> None
 
 let typecheckCompUnit diagnostics compUnit =
@@ -226,47 +249,3 @@ let typecheckCompUnit diagnostics compUnit =
         Result.Ok { Items=tItems }
     else
         Result.Error diagnostics
-
-
-
-    
-    | ExprKind.LetVar v ->
-        match expr.TypeAnnotation with
-        | Some ann -> // Annotated let
-            match check v.InitExpr ann with
-            | Some typedInitExpr ->
-                env.addVar v.Name (ann, Mutability.Mutable)
-                Some(mkTExpr (LetVar {| Name=v.Name; InitExpr=typedInitExpr |}) expr.Loc Unit)
-            | None -> None
-        | None -> // Unannotated let
-            match infer v.InitExpr with
-            | Some typedInitExpr ->
-                env.addVar v.Name (typedInitExpr.Ty, Mutability.Mutable)
-                Some(mkTExpr (LetVar {| Name=v.Name; InitExpr=typedInitExpr |}) expr.Loc Unit)
-
-    | ExprKind.ConstVar v ->
-        match expr.TypeAnnotation with
-        | Some ann -> // Annotated const
-            match check v.InitExpr ann with
-            | Some typedInitExpr ->
-                env.addVar v.Name (ann, Mutability.Immutable)
-                Some(mkTExpr (ConstVar {| Name=v.Name; InitExpr=typedInitExpr |}) expr.Loc Unit)
-            | None -> None
-        | None -> // Unannotated const
-            match infer v.InitExpr with
-            | Some typedInitExpr ->
-                env.addVar v.Name (typedInitExpr.Ty, Mutability.Mutable)
-                Some(mkTExpr (ConstVar {| Name=v.Name; InitExpr=typedInitExpr |}) expr.Loc Unit)
-    | ExprKind.Assign ass ->
-        match env.lookupVar ass.Name with
-        | Some (ty, mut) ->
-            match mut with
-            | Mutable ->
-                match check ass.AssExpr ty with
-                | Some tyAssExpr -> Some (mkTExpr (Assign {| Name=ass.Name; AssExpr=tyAssExpr |}) expr.Loc ty)
-                | None -> None
-            | Immutable ->
-                reportTypeError $"'trying to assign to immutable variable '{ass.Name}'" "can't assign to an immutable variable"; None
-        | None ->
-            reportTypeError $"'{ass.Name}' is not defined." ""; None
-  
