@@ -36,6 +36,6 @@ let checkTreeForErrorNodes (compUnit: CompilationUnit) =
         | ItemKind.Function fn -> acc @ (checkExprForErrorNode fn.Body)
         | _ -> acc)
     |> function
-        | [] -> Result.Ok()
+        | [] -> Result.Ok(compUnit)
         | errs -> Result.Error errs
     

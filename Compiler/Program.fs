@@ -16,7 +16,8 @@ let main args =
     | Success(res, _, _) ->
         printfn "%A\n ------------------" res
         match ParseErrorValidator.checkTreeForErrorNodes res with
-        | Ok resultValue -> printfn "all good :)"
+        | Ok pTree ->
+            
         | Error errorValue ->
             printfn $"Number of errors: {errorValue.Length}"
             errorValue |> List.iter (printfn "%s")
