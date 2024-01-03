@@ -18,6 +18,7 @@
       <Compile Include="Diagnostics.fs" />
       <Compile Include="OptionBuilder.fs" />
       <Compile Include="Sema\Typechecker.fs" />
+      <Compile Include="Lowering\IR.fs" />
       <Compile Include="Program.fs" />
     </ItemGroup>
 
