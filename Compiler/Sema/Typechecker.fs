@@ -1,19 +1,22 @@
 module Compiler.Sema.Typechecker
 
-open System
 open System.Collections.Generic
 open Compiler.AST.ParsedAST
 open Compiler.AST.TypedAST
 open Compiler.AST.Types
 open Compiler.Diagnostics
 open Compiler.OptionBuilder
-open Microsoft.VisualBasic.CompilerServices
+
+let extractIdent (expr: Expr) =
+    match expr._expr with
+    | ExprKind.Ident name -> name
+    | _ -> failwith "unreachable"
 
 type Mutability =
     | Mutable
     | Immutable
 
-type Scope = { variables: Map<Expr, Type * Mutability>; functions: Map<Expr, FnType> }
+type Scope = { variables: Map<Identifier, Type * Mutability>; functions: Map<Identifier, FnType> }
 
 type Env() =
     // Holds all the scopes in a stack. Each element in the stack is an instance
@@ -25,7 +28,7 @@ type Env() =
     member this.addVar(ident, ty, mut): unit =
         scopes.Pop()
         |> fun scope ->
-            let variables' = scope.variables |> Map.add ident (ty, mut)
+            let variables' = scope.variables |> Map.add (extractIdent ident) (ty, mut)
             { scope with variables=variables' }
         |> scopes.Push
 
@@ -36,7 +39,7 @@ type Env() =
             match scopes with
             | [] -> None
             | scope::scopes' ->
-                match Map.tryFind ident scope with
+                match Map.tryFind (extractIdent ident) scope with
                 | Some res -> Some res
                 | None -> lookup scopes'
         
@@ -49,7 +52,7 @@ type Env() =
     member this.addFunction(ident, ty): unit =
         scopes.Pop()
         |> fun scope ->
-            let functions' = scope.functions |> Map.add ident ty
+            let functions' = scope.functions |> Map.add (extractIdent ident) ty
             { scope with functions=functions' }
         |> scopes.Push
     
@@ -58,7 +61,7 @@ type Env() =
             match scopes with
             | [] -> None
             | scope::scopes' ->
-                match Map.tryFind ident scope with
+                match Map.tryFind (extractIdent ident) scope with
                 | Some res -> Some res
                 | None -> lookup scopes'
         
@@ -83,7 +86,8 @@ let promoteNumberType ty1 ty2 =
     then ty1
     else ty2
 
-let mkTExpr expr loc ty: TExpr = { _expr=expr; Loc=loc; Ty=ty }
+let mkTExpr tExpr loc ty: TExpr = { _expr=tExpr; Loc=loc; Ty=ty }
+let mkTItem tItem loc ty: TItem = { _item=tItem; Loc=loc; Ty=ty }
 
 let rec checkType (diagnostics: DiagnosticBag) (env: Env) (expr: Expr) (expectedTy: Type): TExpr option =
     let check = checkType diagnostics env
@@ -199,7 +203,7 @@ and inferType (diagnostics: DiagnosticBag) (env: Env) (expr: Expr): TExpr option
 
         match expr._expr with
         | ExprKind.LetVar _ -> env.addVar(v.Name, tInitExpr.Ty, Mutable)
-        | ExprKind.ConstVar _ -> env.addVar(v.Name, tInitExpr.Ty, Mutable)
+        | ExprKind.ConstVar _ -> env.addVar(v.Name, tInitExpr.Ty, Immutable)
         |> ignore
         
         return mkTExpr (LetVar({| Name=v.Name; InitExpr=tInitExpr |})) Unit}
@@ -215,14 +219,14 @@ and inferType (diagnostics: DiagnosticBag) (env: Env) (expr: Expr): TExpr option
                 reportTypeError "can't reassign to constant variable" "immutable"; None
         | None -> reportTypeError "undefined variable" "undefined"; None
 
-let typecheckItem (diagnostics: DiagnosticBag) (env: Env) item =
+let typecheckItem (diagnostics: DiagnosticBag) (env: Env) (item: Item): TItem option =
     match item._item with
-    | Function fn ->
+    | ItemKind.Function fn ->
         let fnTy = {|
             Parameters=(fn.Params |> List.map (fun p -> p.Ty))
             Return=fn.ReturnType
         |}
-        
+
         env.addFunction(fn.Name, fnTy)
         env.enterScope()
         
@@ -230,10 +234,10 @@ let typecheckItem (diagnostics: DiagnosticBag) (env: Env) item =
         |> List.iter (fun p -> env.addVar(p.Name, p.Ty, Mutable))
         
         match checkType diagnostics env fn.Body fn.ReturnType with
-        | Some tExpr -> Some { _item=item._item; Ty=Type.Fn(fnTy); Loc=item.Loc }
+        | Some tExpr -> Some(mkTItem (Function({| fn with Body=tExpr |})) item.Loc (Type.Fn(fnTy)))
         | None -> None
 
-let typecheckCompUnit diagnostics compUnit =
+let typecheckCompUnit (diagnostics: DiagnosticBag) (compUnit: CompilationUnit) =
     let env = Env()
     env.enterScope()
     

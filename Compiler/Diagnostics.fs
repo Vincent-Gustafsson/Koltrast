@@ -31,12 +31,12 @@ type Diagnostic = {
     Kind: DiagnosticKind
 }
 
-type DiagnosticBag(_sourcePath) =
-    let sourcePath: string = _sourcePath
-    let source: string list = File.ReadAllLines sourcePath |> List.ofArray
+type DiagnosticBag(_sourceName, _source) =
+    let sourceName: string = _sourceName
+    let source: string list = _source
     let mutable diagnostics: Diagnostic list = []
     member this.BEGINNING_OF_FILE = {
-        StreamName=sourcePath
+        StreamName=sourceName
         Start={| Index=0; Line=0; Col=0 |}
         End={| Index=0; Line=0; Col=0 |}
     }
@@ -48,7 +48,7 @@ type DiagnosticBag(_sourcePath) =
         diagnostics |> List.map (fun d ->
             if d.Kind = Program then
                 let loc = d.Loc
-                let locStr = $"{sourcePath}:{loc.Start.Line}:{loc.Start.Col}"
+                let locStr = $"{sourceName}:{loc.Start.Line}:{loc.Start.Col}"
                 let errKindStr = $"[{d.Kind} {d.Level}]"
                 $"{locStr}\n{errKindStr}: {d.Message}"
             else
@@ -61,7 +61,7 @@ type DiagnosticBag(_sourcePath) =
             //    |> List.concat
             let ctxLine = source[loc.Start.Line-1]
             let errKindStr = $"[{d.Kind} {d.Level}]"
-            let locStr = $"{sourcePath}:{loc.Start.Line}:{loc.Start.Col}"
+            let locStr = $"{sourceName}:{loc.Start.Line}:{loc.Start.Col}"
             let hintStr = ((String.replicate (loc.End.Index - loc.Start.Index) "^") + $" {d.Hint}")
             let paddedHintStr = hintStr.PadLeft(int loc.Start.Col + hintStr.Length, '_')
             

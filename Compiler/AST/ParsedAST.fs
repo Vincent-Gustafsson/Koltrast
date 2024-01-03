@@ -16,6 +16,13 @@ type BinOpKind =
     | Sub
     | Mul
     | Div
+with
+    override x.ToString() =
+        match x with
+        | Add -> "+"
+        | Sub -> "-"
+        | Mul -> "*"
+        | Div -> "/"
 
 let binOpStr op =
     match op with

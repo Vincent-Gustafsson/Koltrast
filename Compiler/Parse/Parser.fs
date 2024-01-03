@@ -153,6 +153,7 @@ let pLetVar = parse {
     let! id = pIdent
     let! tyAnnOpt = opt pTyAnnot
     
+    do! ws
     do! skipChar '=' <?> "'=' in variable declaration"
     
     let! initExpr = expr
@@ -170,6 +171,7 @@ let pConstVar = parse {
     let! id = pIdent
     let! tyAnnOpt = opt pTyAnnot
     
+    do! ws
     do! skipChar '=' <?> "'=' in variable declaration"
     
     let! initExpr = expr

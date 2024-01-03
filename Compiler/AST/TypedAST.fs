@@ -17,20 +17,45 @@ type TExprKind =
     | LetVar of {| Name: Expr; InitExpr: TExpr |}
     | ConstVar of {| Name: Expr; InitExpr: TExpr |}
     | Assign of {| Name: Expr; AssExpr: TExpr |}
+with
+    override x.ToString() =
+        match x with
+        | Error _ -> failwith "unreachable"
+        | Block tExprs -> $"""{{{tExprs |> List.map (fun e -> e.ToString()) |> (String.concat "\n")}}}"""
+        | Ident name -> name
+        | IntegerLiteral i -> "int"
+        | BooleanLiteral b -> "bool"
+        | BinOp b -> $"({b.Left.Ty} {b.Op} {b.Right.Ty})"
+        | IfExpr iff -> $"if {iff.Cond.Ty} then {iff.Then.Ty} else {iff.Else.Ty}"
+        | FuncAppl foo -> failwith "todo"
+        | While foo -> $"while {foo.Cond.Ty} \n{foo.Body}"
+        | LetVar v -> $"let ident = {v.InitExpr}"
+        | ConstVar v -> $"const ident = {v.InitExpr}"
+        | Assign foo -> $"ident = {foo.AssExpr}"
 
 and TExpr = {
     _expr: TExprKind
     Ty: Type
     Loc: Location
 }
+with
+    override x.ToString() = x._expr.ToString()
 
+type TItemKind =
+    | Function of {| Name: Expr; Params: FnParam list; ReturnType: Type; Body: TExpr |}
+with
+    override x.ToString() =
+        match x with
+        | Function foo -> $"fn ident() -> {foo.Body}"
 type TItem = {
-    _item: ItemKind
+    _item: TItemKind
     Ty: Type
     Loc: Location
 }
-
+with
+    override x.ToString() = x._item.ToString()
 type TCompilationUnit = {
     Items: TItem list
 }
-
+with
+    override x.ToString() = x.Items |> List.map (fun e -> e.ToString()) |> (String.concat "\n")

@@ -11,7 +11,7 @@ type Type =
             match x with
             | I8 -> "i8"
             | I32 -> "i32"
-            | Bool -> "i8"
+            | Bool -> "bool"
             | Unit -> "unit"
             | Fn fnTy -> $"""({String.concat " -> " (List.map (fun x -> x.ToString()) fnTy.Parameters) } -> {fnTy.Return})"""
 
